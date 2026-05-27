@@ -3,6 +3,7 @@ import { logger } from '../../infra/logger/index.js';
 import { AppError } from '../errors/app.error.js';
 import { sendError } from '../utils/apiResponse.js';
 import { HTTP_STATUS } from '../utils/httpStatus.js';
+import { Prisma } from '../../infra/database/generated/client.js';
 
 export const errorMiddleware = (
     err: unknown,
@@ -27,9 +28,8 @@ export const errorMiddleware = (
 
     // Prisma unique constraint
     if (
-        err instanceof Error &&
-        'code' in err &&
-        (err as Record<string, unknown>).code === 'P2002'
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
     ) {
         error = new AppError(
             'Duplicate field value',

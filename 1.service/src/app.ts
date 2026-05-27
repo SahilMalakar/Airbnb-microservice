@@ -1,8 +1,15 @@
 import { ServerConfig } from './config/index.js';
 import { connectDB, disconnectDB } from './infra/database/prisma.js';
 import { logger } from './infra/logger/index.js';
+import { heathcheckRouter } from './modules/health/ping.route.js';
+import { hotelRouter } from './modules/hotel/hotel.route.js';
 import { app } from './server.js';
+import { errorMiddleware } from './shared/middlewares/globalError.js';
 
+app.use('/api/v1', heathcheckRouter);
+app.use('/api/v1', hotelRouter);
+
+app.use(errorMiddleware);
 const server = app.listen(ServerConfig.PORT, async (): Promise<void> => {
     await connectDB();
     logger.info(`server is running on http://localhost:${ServerConfig.PORT}`);

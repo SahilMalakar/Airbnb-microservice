@@ -1,8 +1,6 @@
-export type createHotelDTO = {
-    name: string;
-    address: string;
-    location: string;
-    pincode: string;
-    rating?: number;
-    ratingCount?: number
-};
+import { z } from 'zod';
+import { createHotelSchema, updateHotelSchema } from './hotel.validation.js';
+
+export type CreateHotelDto = z.infer<typeof createHotelSchema>;
+
+export type UpdateHotelDto = z.infer<typeof updateHotelSchema>;
