@@ -4,6 +4,7 @@ import { AppError } from '../errors/app.error.js';
 import { sendError } from '../utils/apiResponse.js';
 import { HTTP_STATUS } from '../utils/httpStatus.js';
 import { Prisma } from '../../infra/database/generated/client.js';
+import { LoggerConfig } from '../../config/index.js';
 
 export const errorMiddleware = (
     err: unknown,
@@ -65,11 +66,13 @@ export const errorMiddleware = (
         });
     }
 
+    const isDevelopment = LoggerConfig.isDevelopment
+
     return sendError(
         res,
         error.message,
         error.statusCode,
         error.errorCode,
-        error.stack
+        isDevelopment ? stackArray : undefined
     );
 };

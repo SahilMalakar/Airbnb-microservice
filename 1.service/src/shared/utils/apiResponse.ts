@@ -21,14 +21,14 @@ export const sendError = (
     message = 'Internal Server Error',
     statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR,
     errorCode = 'INTERNAL_ERROR',
-    stack?: string
+    stack?: string | string[]
 ) => {
     return res.status(statusCode).json({
         success: false,
         statusCode,
         message,
         errorCode,
-        ...(LoggerConfig.NODE_ENV === 'development' && { stack }),
+        ...(LoggerConfig.isDevelopment && { stack }),
     });
 };
 
