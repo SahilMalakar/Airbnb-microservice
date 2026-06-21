@@ -13,24 +13,23 @@ datasource db {
 }
 
 model Booking {
-  id               Int             @id @default(autoincrement())
+  id               Int              @id @default(autoincrement())
   userId           Int
   hotelId          Int
   totalGuest       Int
   bookingAmount    Int
-  status           BookingStatus   @default(PENDING)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  idempotencyKeyId Int?            @unique
-  idempotencyKey   IdempotencyKey? @relation(fields: [idempotencyKeyId], references: [id])
+  status           BookingStatus    @default(PENDING)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  idempotencyKeyId Int?             @unique
+  idempotencyKeys  IdempotencyKey[]
 }
 
 model IdempotencyKey {
-  id  Int    @id @default(autoincrement())
-  key String @unique
-
-  booking Booking?
-
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  finalized Boolean  @default(false)
+  booking   Booking? @relation(fields: [bookingId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   bookingId Int?
