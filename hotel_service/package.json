@@ -12,10 +12,10 @@
         "format": "prettier --write .",
         "generate": "pnpm dlx prisma generate",
         "format:check": "prettier --check .",
-        "docker:up": "docker compose up -d",
-        "docker:down": "docker compose down",
-        "docker:logs": "docker compose logs -f postgres",
-        "docker:reset": "docker compose down -v && docker compose up -d"
+        "db:start": "docker compose -f docker/docker-compose.dev.yml up -d",
+        "db:stop": "docker compose -f docker/docker-compose.dev.yml down",
+        "db:logs": "docker compose -f docker/docker-compose.dev.yml logs -f",
+        "db:reset": "docker compose -f docker/docker-compose.dev.yml down -v && docker compose -f docker/docker-compose.dev.yml up -d"
     },
     "keywords": [],
     "author": "",

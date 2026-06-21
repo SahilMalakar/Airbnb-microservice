@@ -66,8 +66,8 @@ export async function connectDB(): Promise<void> {
 export async function disconnectDB(): Promise<void> {
     try {
         await prisma.$disconnect();
-        logger.info('database disconnected');
+        logger.info('Database disconnected successfully inside disconnectDB function');
     } catch (error) {
-        logger.error('database disconnection failed', { error });
+        logger.error('Database disconnection failed', { error });
     }
 }

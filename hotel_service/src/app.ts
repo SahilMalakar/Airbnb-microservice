@@ -10,29 +10,32 @@ app.use('/api/v1', heathcheckRouter);
 app.use('/api/v1', hotelRouter);
 
 app.use(errorMiddleware);
+
+// connect DB before server starts listening
+await connectDB();
 const server = app.listen(ServerConfig.PORT, async (): Promise<void> => {
-    await connectDB();
     logger.info(`server is running on http://localhost:${ServerConfig.PORT}`);
     logger.info(`Press Ctrl + C to stop the server`);
 });
 
-const gracefulShutdown = async (): Promise<void> => {
-    logger.info('Shutting down server...');
+const gracefulShutdown = async (signal: string): Promise<void> => {
+    logger.info(`${signal} received. Shutting down server...`);
 
-    try {
-        server.close(async () => {
-            logger.info('HTTP Server closed.');
+    server.close(async () => {
+        try {
+            logger.info('HTTP Server closed');
 
             await disconnectDB();
 
+            logger.info('Database disconnected');
+
             process.exit(0);
-        });
-    } catch (error) {
-        logger.error('Error occurred while shutting down server:', error);
-        process.exit(1);
-    }
+        } catch (error) {
+            logger.error(error);
+            process.exit(1);
+        }
+    });
 };
 
-// Handle termination signals for graceful shutdown
-process.on('SIGINT', gracefulShutdown);
-process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
