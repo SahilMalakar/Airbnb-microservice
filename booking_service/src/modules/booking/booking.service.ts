@@ -1,48 +1,50 @@
+import { prisma } from "../../infra/database/prisma.js";
 import { logger } from "../../infra/logger/index.js";
-import { BadRequestError, NotFoundError } from "../../shared/errors/app.error.js";
+import { BadRequestError } from "../../shared/errors/app.error.js";
 import { generateIdempotencyKey } from "../../shared/utils/generateIdempotency.js";
 import type { CreateBookingDto } from "./booking.dto.js";
-import { confirmBooking, confirmIdempotencyKeyData, createBookingRepo, getIdempotencyKey } from "./booking.repository.js";
+import { confirmBookingWithLock,  createBookingRepo, createIdempotencyKey, finalizeIdempotencyKey, getIdempotencyKeyWithLock } from "./booking.repository.js";
 
 export async function createBookingService(
     data: CreateBookingDto
 ) {
-    const booking = await createBookingRepo(data);
-
     const key = generateIdempotencyKey();
 
-    await confirmIdempotencyKeyData(key, booking.id);
-    logger.info("Idempotency Key confirmed", key);
+    const { booking, idempotencyKey } = await prisma.$transaction(async (tx) => {
+        const booking = await createBookingRepo(data, tx);
+        const idempotencyKey = await createIdempotencyKey(key, booking.id, tx);
+        return { booking, idempotencyKey };
+    });
+
+    logger.info("Idempotency Key created", key);
 
     return {
         booking,
-        idempotencyKey: key
-    }
+        idempotencyKey: idempotencyKey.key
+    };
 }
 
 export async function confirmBookingService(key: string) {
-    const idempotencyKey = await getIdempotencyKey(key);
 
-    if (!idempotencyKey) {
-        logger.error("Idempotency Key not found", key);
-        throw new NotFoundError("Idempotency Key not found");
-    }
+    return await prisma.$transaction(async (tx) => {
 
-    if (idempotencyKey.finalized) {
-        logger.error("Idempotency Key is already finalized", key);
-        throw new BadRequestError("Idempotency Key is already finalized");
-    }
+        const idempotencyKey = await getIdempotencyKeyWithLock(key, tx);
 
-    const booking = await confirmBooking(idempotencyKey.bookingId!);
+        if (idempotencyKey!.finalized) {
+            logger.error("Idempotency Key is already finalized", key);
+            throw new BadRequestError("Idempotency Key is already finalized");
+        }
+        
+        // payment call
 
-    logger.info("Booking confirmed", booking);
+        const booking = await confirmBookingWithLock(idempotencyKey!.bookingId!, tx);
 
-    await confirmIdempotencyKeyData(
-        idempotencyKey.key,
-        booking.id
-    );
+        logger.info("Booking confirmed", booking);
 
-    logger.info("Idempotency Key confirmed", key);
+        await finalizeIdempotencyKey(idempotencyKey!.key, booking!.id, tx);
 
-    return booking;
+        logger.info("Idempotency Key confirmed", key);
+
+        return booking;
+    });
 }
