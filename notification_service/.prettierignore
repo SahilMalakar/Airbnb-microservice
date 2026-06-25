@@ -1,0 +1,9 @@
+node_modules
+dist
+pnpm-lock.yaml
+package-lock.json
+.vscode
+.env
+.env.*
+*.log
+coverage
