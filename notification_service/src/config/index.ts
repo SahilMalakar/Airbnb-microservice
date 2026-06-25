@@ -15,13 +15,12 @@ type LoggerConfigType = {
     isDevelopment: boolean;
 };
 
-
 type RedisConfigType = {
     REDIS_HOST: string;
     REDIS_PORT: number;
     REDIS_PASSWORD: string;
     REDIS_URL: string;
-}
+};
 
 type SmtpConfigType = {
     SMTP_USER: string;
@@ -47,13 +46,12 @@ export const LoggerConfig: LoggerConfigType = {
     isTest: process.env.NODE_ENV === 'test',
 };
 
-
 export const RedisConfig: RedisConfigType = {
     REDIS_HOST: required('REDIS_HOST'),
     REDIS_PORT: Number(required('REDIS_PORT')),
     REDIS_PASSWORD: process.env.REDIS_PASSWORD ?? '',
-    REDIS_URL: required('REDIS_URL')
-}
+    REDIS_URL: required('REDIS_URL'),
+};
 
 export const SmtpConfig: SmtpConfigType = {
     SMTP_USER: required('SMTP_USER'),

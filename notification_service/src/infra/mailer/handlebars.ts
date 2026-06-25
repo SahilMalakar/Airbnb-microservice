@@ -1,11 +1,11 @@
-import fs from "fs/promises";
-import path from "path";
-import handlebars from "handlebars";
-import { InternalServerError } from "../../shared/errors/app.error.js";
-import { logger } from "../logger/index.js";
+import fs from 'fs/promises';
+import path from 'path';
+import handlebars from 'handlebars';
+import { InternalServerError } from '../../shared/errors/app.error.js';
+import { logger } from '../logger/index.js';
 
 // Absolute path to the directory where all .hbs templates live
-const TEMPLATES_DIR = path.join(process.cwd(), "src", "shared", "template");
+const TEMPLATES_DIR = path.join(process.cwd(), 'src', 'shared', 'template');
 
 // In-memory cache of compiled templates, keyed by template name (avoids re-reading + re-compiling on every call)
 const templateCache = new Map<string, HandlebarsTemplateDelegate>();
@@ -23,8 +23,10 @@ export async function compileTemplate(
 
     // Guard: if the resolved path somehow escapes TEMPLATES_DIR, reject it (path traversal protection)
     if (!filePath.startsWith(TEMPLATES_DIR)) {
-        logger.error(`Invalid template name: "${templateName}"`)
-        throw new InternalServerError(`Invalid template name: "${templateName}"`);
+        logger.error(`Invalid template name: "${templateName}"`);
+        throw new InternalServerError(
+            `Invalid template name: "${templateName}"`
+        );
     }
 
     // Check the cache first to avoid disk I/O + recompilation
@@ -35,11 +37,13 @@ export async function compileTemplate(
         let source: string;
         try {
             // Read the raw .hbs file contents from disk (non-blocking)
-            source = await fs.readFile(filePath, "utf-8");
+            source = await fs.readFile(filePath, 'utf-8');
         } catch (err) {
             // File doesn't exist or isn't readable — surface a clear error
             logger.error(`Template "${safeName}" not found at ${filePath}`);
-            throw new InternalServerError(`Template "${safeName}" not found at ${filePath}`);
+            throw new InternalServerError(
+                `Template "${safeName}" not found at ${filePath}`
+            );
         }
 
         // Compile the raw template string into a reusable Handlebars function
@@ -49,7 +53,7 @@ export async function compileTemplate(
         templateCache.set(safeName, compiled);
     }
 
-    logger.info("Template compiled successfully");
+    logger.info('Template compiled successfully');
     // Render the compiled template with the provided context data and return the final HTML/string
     return compiled(context);
 }

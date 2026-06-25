@@ -61,4 +61,4 @@ export class BadRequestError extends AppError {
     constructor(message: string) {
         super(message, HTTP_STATUS.BAD_REQUEST, 'BAD_REQUEST');
     }
-} 
+}

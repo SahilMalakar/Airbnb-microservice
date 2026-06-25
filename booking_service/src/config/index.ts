@@ -29,7 +29,7 @@ type RedisConfigType = {
     REDIS_PORT: number;
     REDIS_PASSWORD: string;
     REDIS_URL: string;
-}
+};
 
 function required(key: string): string {
     const value = process.env[key];
@@ -62,5 +62,5 @@ export const RedisConfig: RedisConfigType = {
     REDIS_HOST: required('REDIS_HOST'),
     REDIS_PORT: Number(required('REDIS_PORT')),
     REDIS_PASSWORD: process.env.REDIS_PASSWORD ?? '',
-    REDIS_URL: required('REDIS_URL')
-}
+    REDIS_URL: required('REDIS_URL'),
+};

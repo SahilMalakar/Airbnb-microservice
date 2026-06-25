@@ -1,8 +1,8 @@
 // TEMP: pushes a batch of dummy email jobs onto the queue for local testing.
 
-import { logger } from "../../infra/logger/index.js";
-import { notificationQueue } from "../../infra/queue/queue.client.js";
-import type { EmailJobDto } from "../types/notification.type.js";
+import { logger } from '../../infra/logger/index.js';
+import { notificationQueue } from '../../infra/queue/queue.client.js';
+import type { EmailJobDto } from '../types/notification.type.js';
 
 // Remove or guard behind NODE_ENV !== 'production' once real producers exist.
 export async function enqueueTestEmails(): Promise<void> {
@@ -29,6 +29,8 @@ export async function enqueueTestEmails(): Promise<void> {
 
     for (const emailJob of testEmails) {
         await notificationQueue.add('email-job', emailJob);
-        logger.info(`Enqueued test email job [correlationId: ${emailJob.correlationId}]`);
+        logger.info(
+            `Enqueued test email job [correlationId: ${emailJob.correlationId}]`
+        );
     }
 }

@@ -1,9 +1,9 @@
-import nodemailer, { type Transporter } from "nodemailer";
-import { SmtpConfig } from "../../config/index.js";
-import { compileTemplate } from "./handlebars.js";
-import { InternalServerError } from "../../shared/errors/app.error.js";
-import type { EmailJobDto } from "../../shared/types/notification.type.js";
-import { logger } from "../logger/index.js";
+import nodemailer, { type Transporter } from 'nodemailer';
+import { SmtpConfig } from '../../config/index.js';
+import { compileTemplate } from './handlebars.js';
+import { InternalServerError } from '../../shared/errors/app.error.js';
+import type { EmailJobDto } from '../../shared/types/notification.type.js';
+import { logger } from '../logger/index.js';
 
 // Single reusable transporter instance — created once, not per email
 const transporter: Transporter = nodemailer.createTransport({
@@ -18,10 +18,10 @@ const transporter: Transporter = nodemailer.createTransport({
 export async function verifyMailer(): Promise<void> {
     try {
         await transporter.verify();
-        logger.info("[mailer] SMTP transporter ready");
+        logger.info('[mailer] SMTP transporter ready');
     } catch (err) {
-        logger.error("[mailer] SMTP verification failed:", err);
-        throw new InternalServerError("SMTP transporter verification failed");
+        logger.error('[mailer] SMTP verification failed:', err);
+        throw new InternalServerError('SMTP transporter verification failed');
     }
 }
 
@@ -34,7 +34,9 @@ export async function sendEmail(job: EmailJobDto): Promise<void> {
     try {
         html = await compileTemplate(templateId, params);
     } catch (err) {
-        logger.error(`[${correlationId}] Failed to compile template "${templateId}": ${(err as Error).message}`);
+        logger.error(
+            `[${correlationId}] Failed to compile template "${templateId}": ${(err as Error).message}`
+        );
         throw new InternalServerError(
             `[${correlationId}] Failed to compile template "${templateId}": ${(err as Error).message}`
         );
@@ -48,9 +50,13 @@ export async function sendEmail(job: EmailJobDto): Promise<void> {
             subject,
             html,
         });
-        logger.info(`[mailer] Email sent [${correlationId}] -> ${to} | messageId: ${info.messageId}`);
+        logger.info(
+            `[mailer] Email sent [${correlationId}] -> ${to} | messageId: ${info.messageId}`
+        );
     } catch (err) {
-        logger.error(`[${correlationId}] Failed to send email to "${to}": ${(err as Error).message}`);
+        logger.error(
+            `[${correlationId}] Failed to send email to "${to}": ${(err as Error).message}`
+        );
         throw new InternalServerError(
             `[${correlationId}] Failed to send email to "${to}": ${(err as Error).message}`
         );
