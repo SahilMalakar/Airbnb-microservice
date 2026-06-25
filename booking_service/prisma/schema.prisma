@@ -19,6 +19,7 @@ model Booking {
   totalGuest       Int
   bookingAmount    Int
   status           BookingStatus    @default(PENDING)
+  holdExpiresAt    DateTime // when this PENDING hold, dies if not confirmed
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   idempotencyKeyId Int?             @unique
@@ -39,4 +40,5 @@ enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
+  EXPIRED
 }
