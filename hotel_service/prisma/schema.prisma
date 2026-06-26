@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/infra/database/generated"
@@ -14,6 +9,7 @@ datasource db {
 
 model Hotel {
   id          Int    @id @default(autoincrement())
+  name        String
   description String
   hostId      Int // reference to Auth service's User.id — not a real FK
   address     String
@@ -25,7 +21,7 @@ model Hotel {
   stateId Int
   state   State @relation(fields: [stateId], references: [id])
 
-  rooms         Room[]
+  rooms Room[]
   // ratingSummary HotelRatingSummary?
 
   createdAt DateTime  @default(now())
@@ -64,7 +60,7 @@ model State {
 }
 
 model RoomCategory {
-  id          Int    @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   roomType    RoomType // e.g. general / deluxe / suite
   description String
 
@@ -76,8 +72,8 @@ model RoomCategory {
 
 enum RoomType {
   STANDARD // cheapest — basic amenities, smallest room size
-  DELUXE   // mid-tier — more space, better view/amenities than Standard
-  SUITE    // most expensive — multiple rooms/living area, premium amenities
+  DELUXE // mid-tier — more space, better view/amenities than Standard
+  SUITE // most expensive — multiple rooms/living area, premium amenities
 }
 
 model Room {
@@ -112,7 +108,6 @@ model Room {
 
 //   updatedAt DateTime @updatedAt
 // }
-
 
 // Review data lives in Booking service instead
 // (same-DB validation against booking status, no cross-service call needed on the write path).

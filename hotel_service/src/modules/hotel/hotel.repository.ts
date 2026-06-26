@@ -1,73 +1,70 @@
-import type { HotelUpdateInput } from '../../infra/database/generated/models.js';
 import { prisma } from '../../infra/database/prisma.js';
-import type { CreateHotelDto, UpdateHotelDto } from './hotel.dto.js';
+import { BaseRepository } from '../../infra/database/base.repository.js';
+import type { Hotel, Prisma } from '../../infra/database/generated/client.js';
+import type { CreateHotelDto } from './hotel.dto.js';
 
-export const createHotelRepo = async (data: CreateHotelDto) => {
-    return prisma.hotel.create({
-        data,
-    });
-};
+class HotelRepository extends BaseRepository
+    <
+        Hotel,
+        Prisma.HotelWhereUniqueInput,
+        Prisma.HotelWhereInput,
+        Prisma.HotelCreateInput,
+        Prisma.HotelUpdateInput
+    > {
+    constructor() {
+        super(prisma.hotel);
+    }
 
-export const getHotelByIdRepo = async (hotelId: number) => {
-    return await prisma.hotel.findUnique({
-        where: {
-            id: hotelId,
-            deletedAt: null,
-        },
-    });
-};
+    async createHotel(data: CreateHotelDto): Promise<Hotel> {
+        const { cityId, stateId, ...rest } = data;
 
-export const getAllHotelsRepo = async () => {
-    return await prisma.hotel.findMany({
-        where: {
-            deletedAt: null,
-        },
-        select: {
-            id: true,
-            description: true,
-            name: true,
-            address: true,
-            location: true,
-            pincode: true,
-        },
-    });
-};
+        return prisma.hotel.create({
+            data: {
+                ...rest,
+                city: { connect: { id: cityId } },
+                state: { connect: { id: stateId } },
+            },
+        });
+    }
 
-export const updateHotelRepo = async (id: number, data: UpdateHotelDto) => {
-    const updateData = Object.fromEntries(
-        Object.entries(data).filter(([, value]) => value !== undefined)
-    ) as HotelUpdateInput;
+    async findActiveById(id: number) {
+        return this.model.findUnique({ where: { id, deletedAt: null } });
+    }
 
-    return await prisma.hotel.update({
-        where: { id, deletedAt: null },
-        data: updateData,
-    });
-};
+    async findAllActive() {
+        return prisma.hotel.findMany({
+            where: { deletedAt: null },
+            select: {
+                id: true,
+                description: true,
+                address: true,
+                pincode: true,
+                cityId: true,
+                stateId: true,
+                hostId: true,
+            },
+        });
+    }
 
-export const deleteHotelRepo = async (id: number) => {
-    return await prisma.hotel.update({
-        where: { id, deletedAt: null },
-        data: { deletedAt: new Date() },
-        select: {
-            id: true,
-            name: true,
-        },
-    });
-};
+    async findByIdIncludingDeleted(id: number) {
+        return this.model.findUnique({ where: { id } });
+    }
 
-export const getHotelByIdIncludingDeletedRepo = async (id: number) => {
-    return prisma.hotel.findUnique({
-        where: { id },
-    });
-};
+    async softDeleteActive(id: number) {
+        return prisma.hotel.update({
+            where: { id, deletedAt: null },
+            data: { deletedAt: new Date() },
+            select: { id: true },
+        });
+    }
 
-export const recoveryHotelRepo = async (id: number) => {
-    return await prisma.hotel.update({
-        where: { id, deletedAt: { not: null } },
-        data: { deletedAt: null },
-        select: {
-            id: true,
-            name: true,
-        },
-    });
-};
+    async recover(id: number) {
+        return prisma.hotel.update({
+            where: { id, deletedAt: { not: null } },
+            data: { deletedAt: null },
+            select: { id: true },
+        });
+    }
+}
+
+export const hotelRepository = new HotelRepository();
