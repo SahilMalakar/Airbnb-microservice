@@ -53,9 +53,7 @@ export async function connectDB(): Promise<void> {
     try {
         await prisma.$connect();
         logger.info('database connected successfully', {
-            host: DBConfig.DB_HOST,
-            port: DBConfig.DB_PORT,
-            name: DBConfig.DB_NAME,
+            db_url: DBConfig.DATABASE_URL
         });
     } catch (error) {
         logger.error('database connection failed', { error });

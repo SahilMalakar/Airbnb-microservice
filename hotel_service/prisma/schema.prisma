@@ -13,18 +13,118 @@ datasource db {
 }
 
 model Hotel {
-  id          Int      @id @default(autoincrement())
-  name        String
+  id          Int    @id @default(autoincrement())
   description String
-
+  hostId      Int // reference to Auth service's User.id — not a real FK
   address     String
-  location    String
   pincode     String
 
-  rating      Float    @default(0)
-  ratingCount Int      @default(0)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  cityId Int
+  city   City @relation(fields: [cityId], references: [id])
+
+  stateId Int
+  state   State @relation(fields: [stateId], references: [id])
+
+  rooms         Room[]
+  // ratingSummary HotelRatingSummary?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([cityId])
+  @@index([stateId])
+  @@index([hostId])
 }
+
+model City {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  stateId Int
+  state   State @relation(fields: [stateId], references: [id])
+
+  hotels Hotel[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stateId])
+}
+
+model State {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  cities City[]
+  hotels Hotel[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RoomCategory {
+  id          Int    @id @default(autoincrement())
+  roomType    RoomType // e.g. general / deluxe / suite
+  description String
+
+  rooms Room[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum RoomType {
+  STANDARD // cheapest — basic amenities, smallest room size
+  DELUXE   // mid-tier — more space, better view/amenities than Standard
+  SUITE    // most expensive — multiple rooms/living area, premium amenities
+}
+
+model Room {
+  id     Int    @id @default(autoincrement())
+  roomNo String
+  price  Int
+
+  hotelId Int
+  hotel   Hotel @relation(fields: [hotelId], references: [id])
+
+  roomCategoryId Int
+  roomCategory   RoomCategory @relation(fields: [roomCategoryId], references: [id])
+
+  // no bookingId, no date_of_availability — booking history lives in Booking service
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([hotelId])
+  @@index([roomCategoryId])
+}
+
+// Written by an async consumer reacting to ReviewCreated events
+// published from Booking service — not updated synchronously.
+
+// model HotelRatingSummary {
+//   hotelId     Int   @id
+//   hotel       Hotel @relation(fields: [hotelId], references: [id])
+//   avgRating   Float @default(0)
+//   reviewCount Int   @default(0)
+
+//   updatedAt DateTime @updatedAt
+// }
+
+
+// Review data lives in Booking service instead
+// (same-DB validation against booking status, no cross-service call needed on the write path).
+// Hotel service only consumes ReviewCreated events to update HotelRatingSummary above; it does not own Review rows itself.
+
+// model Review {
+//   id       Int    @id @default(autoincrement())
+//   rating   Int
+//   comments String
+//
+//   bookingId Int // reference to Booking service's Booking.id — not a real FK
+//
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }

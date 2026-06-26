@@ -1,23 +1,25 @@
+version: "3.9"
+
 services:
-    redis:
-        image: redis:7-alpine
-        container_name: notification-redis
+  redis:
+    image: redis:7-alpine
+    container_name: notification-redis
 
-        command: redis-server --requirepass notificationpassword
+    command: redis-server --requirepass notificationpassword
 
-        ports:
-            - '6381:6379'
+    ports:
+      - "6382:6379"
 
-        volumes:
-            - notification_redis_data:/data
+    volumes:
+      - notification_redis_data:/data
 
-        healthcheck:
-            test: ['CMD', 'redis-cli', '-a', 'notificationpassword', 'ping']
-            interval: 5s
-            timeout: 5s
-            retries: 5
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "notificationpassword", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-        restart: unless-stopped
+    restart: unless-stopped
 
 volumes:
-    notification_redis_data:
+  notification_redis_data:

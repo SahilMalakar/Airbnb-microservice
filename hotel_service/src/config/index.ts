@@ -17,11 +17,13 @@ type LoggerConfigType = {
 
 type DBConfigType = {
     DATABASE_URL: string;
-    DB_HOST: string;
-    DB_PORT: number;
-    DB_NAME: string;
-    DB_USER: string;
-    DB_PASSWORD: string;
+};
+
+type RedisConfigType = {
+    REDIS_HOST: string;
+    REDIS_PORT: number;
+    REDIS_PASSWORD: string;
+    REDIS_URL: string;
 };
 
 function required(key: string): string {
@@ -44,9 +46,11 @@ export const LoggerConfig: LoggerConfigType = {
 
 export const DBConfig: DBConfigType = {
     DATABASE_URL: required('DATABASE_URL'),
-    DB_HOST: process.env.DB_HOST ?? 'localhost',
-    DB_PORT: Number(process.env.DB_PORT) || 5434,
-    DB_NAME: required('DB_NAME'),
-    DB_USER: required('DB_USER'),
-    DB_PASSWORD: required('DB_PASSWORD'),
+};
+
+export const RedisConfig: RedisConfigType = {
+    REDIS_HOST: required('REDIS_HOST'),
+    REDIS_PORT: Number(required('REDIS_PORT')),
+    REDIS_PASSWORD: process.env.REDIS_PASSWORD ?? '',
+    REDIS_URL: required('REDIS_URL'),
 };
