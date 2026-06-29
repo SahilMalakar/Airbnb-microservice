@@ -14,8 +14,28 @@ type Application struct {
 	Config Config
 }
 
-func (a *Application) Run() error {
+// NewConfig is the single source of truth for default values.
+func NewConfig(addr string) *Config {
+	if addr == "" {
+		addr = ":8080"
+	}
+	return &Config{
+		Address: addr,
+	}
+}
 
+// NewApplication assumes cfg was built via NewConfig and is valid.
+// A nil cfg is a programmer error, not a runtime condition to silently fix.
+func NewApplication(cfg *Config) *Application {
+	if cfg == nil {
+		panic("app: NewApplication called with nil config")
+	}
+	return &Application{
+		Config: *cfg,
+	}
+}
+
+func (a *Application) Run() error {
 	mux := http.NewServeMux() // TODO: swap for chi router
 
 	server := &http.Server{

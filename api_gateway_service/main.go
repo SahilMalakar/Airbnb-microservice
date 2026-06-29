@@ -10,15 +10,11 @@ import (
 )
 
 func main() {
-	cfg := app.Config{
-		Address: ":8080",
-	}
+	cfg := app.NewConfig(":8080")
 
-	server := app.Application{
-		Config: cfg,
-	}
+	application := app.NewApplication(cfg)
 
-	err := server.Run()
+	err := application.Run()
 	if errors.Is(err, http.ErrServerClosed) {
 		fmt.Printf("server closed\n")
 	} else if err != nil {
