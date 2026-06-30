@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/config"
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/router"
 )
 
 type Config struct {
@@ -36,12 +37,12 @@ func NewApplication(cfg *Config) *Application {
 	}
 }
 
-func (a *Application) Run() error {
-	mux := http.NewServeMux() // TODO: swap for chi router
+func (a *Application) RunServer() error {
+	chi := router.SetUpRouter()
 
 	server := &http.Server{
 		Addr:         a.Config.Address,
-		Handler:      mux,
+		Handler:      chi,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  120 * time.Second,

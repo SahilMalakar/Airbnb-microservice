@@ -2,15 +2,17 @@ package config
 
 import (
 	"log"
+	"strconv"
 	"sync"
 
-	"github.com/joho/godotenv"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 var loadOnce sync.Once
 
-func loadEnv() {
+func LoadEnv() {
 	loadOnce.Do(func() {
 		if err := godotenv.Load(); err != nil {
 			log.Println("no .env file found, relying on real environment variables")
@@ -19,7 +21,6 @@ func loadEnv() {
 }
 
 func GetEnvString(key string, fallBack string) string {
-	loadEnv()
 
 	val, exists := os.LookupEnv(key)
 	if !exists {
@@ -27,4 +28,34 @@ func GetEnvString(key string, fallBack string) string {
 	}
 
 	return val
+}
+
+func GetEnvInt(key string, fallBack int) int {
+
+	val, exists := os.LookupEnv(key)
+	if !exists {
+		return fallBack
+	}
+
+	valInt, err := strconv.Atoi(val)
+	if err != nil {
+		return fallBack
+	}
+
+	return valInt
+}
+
+func GetEnvBool(key string, fallBack bool) bool {
+
+	val, exists := os.LookupEnv(key)
+	if !exists {
+		return fallBack
+	}
+
+	valBool, err := strconv.ParseBool(val)
+	if err != nil {
+		return fallBack
+	}
+
+	return valBool
 }
