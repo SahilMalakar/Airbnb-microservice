@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/config"
 )
 
 type Config struct {
@@ -15,12 +17,11 @@ type Application struct {
 }
 
 // NewConfig is the single source of truth for default values.
-func NewConfig(addr string) *Config {
-	if addr == "" {
-		addr = ":8080"
-	}
+func NewConfig() *Config {
+	port := config.GetEnvString("PORT", "8080")
+
 	return &Config{
-		Address: addr,
+		Address: ":" + port,
 	}
 }
 

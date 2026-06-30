@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	cfg := app.NewConfig(":8080")
+	cfg := app.NewConfig()
 
 	application := app.NewApplication(cfg)
 
