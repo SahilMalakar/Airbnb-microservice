@@ -1,9 +1,12 @@
 package service
 
-import db "github.com/sahilmalakar/airbnb-microservice/api-gateway/db/repository"
+import (
+	db "github.com/sahilmalakar/airbnb-microservice/api-gateway/db/repository"
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/models"
+)
 
 type UserService interface {
-	CreateUser() error
+	CreateUser(user *models.User) (*models.User, error)
 }
 
 // UserServiceImpl is the concrete, database-backed implementation of
@@ -20,10 +23,9 @@ func NewUserService(userRepo db.UserRepository) UserService {
 	}
 }
 
-// CreateUser is a method that creates a new user.
-// CreateUser is a method that creates a new user. It wraps the Create
-// method of the injected UserRepository, providing a clean separation
-// between the service layer and the data-access layer.
-func (u *UserServiceImpl) CreateUser() error {
-	return u.userRepository.Create()
+// CreateUser wraps the Create method of the injected UserRepository,
+// providing a clean separation between the service layer and the
+// data-access layer.
+func (u *UserServiceImpl) CreateUser(user *models.User) (*models.User, error) {
+	return u.userRepository.Create(user)
 }

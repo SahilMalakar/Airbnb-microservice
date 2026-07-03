@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/models"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/service"
 )
 
@@ -17,10 +19,19 @@ func NewUserController(userService service.UserService) *UserController {
 }
 
 func (u *UserController) CreateUser(w http.ResponseWriter, r *http.Request) {
-	if err := u.UserService.CreateUser(); err != nil {
+	var user models.User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	createdUser, err := u.UserService.CreateUser(&user)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("User registration completed"))
+	json.NewEncoder(w).Encode(createdUser)
 }
