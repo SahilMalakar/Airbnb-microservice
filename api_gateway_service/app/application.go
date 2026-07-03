@@ -1,7 +1,6 @@
 package app
 
 import (
-	"database/sql"
 	"fmt"
 	"net/http"
 	"time"
@@ -22,12 +21,10 @@ type Config struct {
 // dependencies needed to run the server.
 type Application struct {
 	Config Config
-	Store  db.Storage
 }
 
 // NewConfig builds a Config using environment variables, falling back to
-// somee defaults when they aren't set. This is the single source of truth
-// for default values.
+// some defaults when they aren't set.
 func NewConfig() *Config {
 	port := config.GetEnvString("PORT", "8080")
 
@@ -37,23 +34,27 @@ func NewConfig() *Config {
 }
 
 // NewApplication constructs an Application from a valid Config.
-// NewApplication assumes cfg was built via NewConfig and is valid.
-// A nil cfg is a programmer error, not a runtime condition to silently fix.
-func NewApplication(cfg *Config, conn *sql.DB) *Application {
-	if cfg == nil {
-		panic("app: NewApplication called with nil config")
-	}
+func NewApplication(cfg *Config) *Application {
 	return &Application{
 		Config: *cfg,
-		Store:  *db.NewStorage(conn),
 	}
 }
 
-// RunServer starts the HTTP server using the configured router and address,
-// and blocks until the server stops or errors out.
+// RunServer sets up the database, wires all dependencies, and starts the
+// HTTP server.
 func (a *Application) RunServer() error {
-	// Wire dependencies: Storage → Service → Controller → Router
-	userService := service.NewUserService(a.Store.Repo)
+
+	conn, err := config.LoadDb()
+	if err != nil {
+		fmt.Println("Error setting up database:", err)
+		return err
+	}
+
+	defer conn.Close()
+
+	// Wire dependencies: DB → Repository → Service → Controller → Router
+	userRepo := db.NewUserRepository(conn)
+	userService := service.NewUserService(userRepo)
 	userController := handler.NewUserController(userService)
 	userRouter := router.NewUserRouter(userController)
 
@@ -63,11 +64,10 @@ func (a *Application) RunServer() error {
 		Addr:         a.Config.Address,
 		Handler:      chi,
 		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
 
-	fmt.Println("server started listening on address", a.Config.Address)
+	fmt.Println("server started listening on", a.Config.Address)
 
 	return server.ListenAndServe()
 }
