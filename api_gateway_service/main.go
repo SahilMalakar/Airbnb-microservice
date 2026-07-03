@@ -10,6 +10,9 @@ import (
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/config"
 )
 
+// main is the entry point: it loads environment config, builds the
+// application, and starts the server, exiting non-zero on unexpected
+// startup errors.
 func main() {
 
 	config.LoadEnv()

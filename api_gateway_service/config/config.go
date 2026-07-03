@@ -12,6 +12,9 @@ import (
 
 var loadOnce sync.Once
 
+// LoadEnv loads variables from a .env file into the process environment.
+// It only runs once per process, even if called multiple times, since
+// loadOnce guards it.
 func LoadEnv() {
 	loadOnce.Do(func() {
 		if err := godotenv.Load(); err != nil {
@@ -20,42 +23,40 @@ func LoadEnv() {
 	})
 }
 
+// getEnv is a generic helper that looks up an environment variable and
+// parses it into type T using the supplied parse function. If the variable
+// isn't set, or parsing fails, fallback is returned instead. This centralizes
+// the "lookup -> parse -> fallback on error" pattern shared by GetEnvString,
+// GetEnvInt, and GetEnvBool below.
+func getEnv[T any](key string, fallback T, parse func(string) (T, error)) T {
+	val, exists := os.LookupEnv(key)
+	if !exists {
+		return fallback
+	}
+
+	parsed, err := parse(val)
+	if err != nil {
+		return fallback
+	}
+
+	return parsed
+}
+
+// GetEnvString returns the string value of key, or fallBack if unset.
 func GetEnvString(key string, fallBack string) string {
-
-	val, exists := os.LookupEnv(key)
-	if !exists {
-		return fallBack
-	}
-
-	return val
+	return getEnv(key, fallBack, func(s string) (string, error) {
+		return s, nil
+	})
 }
 
+// GetEnvInt returns the integer value of key, or fallBack if unset or
+// unparsable as an int.
 func GetEnvInt(key string, fallBack int) int {
-
-	val, exists := os.LookupEnv(key)
-	if !exists {
-		return fallBack
-	}
-
-	valInt, err := strconv.Atoi(val)
-	if err != nil {
-		return fallBack
-	}
-
-	return valInt
+	return getEnv(key, fallBack, strconv.Atoi)
 }
 
+// GetEnvBool returns the boolean value of key, or fallBack if unset or
+// unparsable as a bool.
 func GetEnvBool(key string, fallBack bool) bool {
-
-	val, exists := os.LookupEnv(key)
-	if !exists {
-		return fallBack
-	}
-
-	valBool, err := strconv.ParseBool(val)
-	if err != nil {
-		return fallBack
-	}
-
-	return valBool
+	return getEnv(key, fallBack, strconv.ParseBool)
 }

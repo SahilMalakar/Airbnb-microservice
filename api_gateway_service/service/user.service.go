@@ -1,0 +1,29 @@
+package service
+
+import db "github.com/sahilmalakar/airbnb-microservice/api-gateway/db/repository"
+
+type UserService interface {
+	CreateUser() error
+}
+
+// UserServiceImpl is the concrete, database-backed implementation of
+// UserService.
+type UserServiceImpl struct {
+	userRepository db.UserRepository
+}
+
+// NewUserServiceImpl is a constructor that builds and returns a new
+// UserService instance with the provided UserRepository wired in.
+func NewUserService(userRepository db.UserRepository) UserService {
+	return &UserServiceImpl{
+		userRepository: userRepository,
+	}
+}
+
+// CreateUser is a method that creates a new user.
+// CreateUser is a method that creates a new user. It wraps the Create
+// method of the injected UserRepository, providing a clean separation
+// between the service layer and the data-access layer.
+func (u *UserServiceImpl) CreateUser() error {
+	return u.userRepository.Create()
+}
