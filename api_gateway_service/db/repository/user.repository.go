@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/models"
@@ -10,9 +9,10 @@ import (
 
 // UserRepository defines the data-access operations available for users.
 type UserRepository interface {
-	Create(*models.User) (*models.User, error)
+	Create(name, email, hashPassword string,
+		role models.Role) (*models.User, error)
 	// GetUsers() ([]User, error)
-	GetUserByID(id int64) (*models.User, error)
+	// GetUserByID(id int64) (*models.User, error)
 	// Update(id int64, user *User) error
 	// Delete(id int64) error
 }
@@ -44,22 +44,22 @@ func (u *UserRepositoryImpl) GetUserByID(id int64) (*models.User, error) {
 
 // Create persists a new user record.
 // TODO: not yet implemented — currently a no-op.
-func (u *UserRepositoryImpl) Create(user *models.User) (*models.User, error) {
-	//TODO: lets make one dummy db query
-	query := `INSERT INTO users (username, email, password) VALUES ($1, $2, $3)`
+func (u *UserRepositoryImpl) Create(
+	name, email, hashPassword string,
+	role models.Role) (*models.User, error) {
 
-	result, err := u.db.Exec(query, "sahil malakar", "sahil@gmail.com", "sahil@123456")
+	query := `INSERT INTO users (name, email, password, role) 
+		VALUES ($1, $2, $3, $4) 
+		RETURNING id, name, email, role, created_at, updated_at`
+
+	fmt.Println("query string : ", query)
+	var user models.User
+	err := u.db.QueryRow(query, name, email, hashPassword, role).Scan(
+		&user.ID, &user.Name, &user.Email, &user.Role, &user.CreatedAt, &user.UpdatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-
-	if rowsAffected == 0 {
-		fmt.Println("failed to insert", user)
-		return nil, errors.New("failed to insert user")
-	}
-
-	fmt.Println("successfully inserted in database", rowsAffected)
-	return user, nil
+	return &user, nil
 }

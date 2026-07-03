@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/models"
@@ -18,18 +19,23 @@ func NewUserController(userService service.UserService) *UserController {
 	}
 }
 
-func (u *UserController) CreateUser(w http.ResponseWriter, r *http.Request) {
+func (u *UserController) SignUp(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("=== SIGNUP HANDLER HIT ===")
+
 	var user models.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+	fmt.Println("inside user handler", user)
 
-	createdUser, err := u.UserService.CreateUserService(&user)
+	createdUser, err := u.UserService.SignUpService(&user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	fmt.Println("created user: ", createdUser)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
