@@ -6,7 +6,7 @@ import (
 )
 
 type UserService interface {
-	CreateUser(user *models.User) (*models.User, error)
+	CreateUserService(user *models.User) (*models.User, error)
 }
 
 // UserServiceImpl is the concrete, database-backed implementation of
@@ -26,6 +26,8 @@ func NewUserService(userRepo db.UserRepository) UserService {
 // CreateUser wraps the Create method of the injected UserRepository,
 // providing a clean separation between the service layer and the
 // data-access layer.
-func (u *UserServiceImpl) CreateUser(user *models.User) (*models.User, error) {
+func (u *UserServiceImpl) CreateUserService(user *models.User) (*models.User, error) {
+	
+
 	return u.userRepository.Create(user)
 }

@@ -35,7 +35,7 @@ func (u *UserRepositoryImpl) GetUserByID(id int64) (*models.User, error) {
 
 	row := u.db.QueryRow(query, id)
 
-	if err := row.Scan(&user.Id, &user.UserName, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt); err != nil {
+	if err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt); err != nil {
 		return nil, err
 	}
 

@@ -25,7 +25,7 @@ func (u *UserController) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdUser, err := u.UserService.CreateUser(&user)
+	createdUser, err := u.UserService.CreateUserService(&user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
