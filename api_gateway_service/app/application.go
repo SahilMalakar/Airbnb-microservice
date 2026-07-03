@@ -1,6 +1,7 @@
 package app
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"time"
@@ -38,13 +39,13 @@ func NewConfig() *Config {
 // NewApplication constructs an Application from a valid Config.
 // NewApplication assumes cfg was built via NewConfig and is valid.
 // A nil cfg is a programmer error, not a runtime condition to silently fix.
-func NewApplication(cfg *Config) *Application {
+func NewApplication(cfg *Config, conn *sql.DB) *Application {
 	if cfg == nil {
 		panic("app: NewApplication called with nil config")
 	}
 	return &Application{
 		Config: *cfg,
-		Store:  *db.NewStorage(),
+		Store:  *db.NewStorage(conn),
 	}
 }
 
@@ -52,7 +53,7 @@ func NewApplication(cfg *Config) *Application {
 // and blocks until the server stops or errors out.
 func (a *Application) RunServer() error {
 	// Wire dependencies: Storage → Service → Controller → Router
-	userService := service.NewUserService(a.Store.UserRepository)
+	userService := service.NewUserService(a.Store.Repo)
 	userController := handler.NewUserController(userService)
 	userRouter := router.NewUserRouter(userController)
 

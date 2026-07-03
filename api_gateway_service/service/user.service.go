@@ -14,9 +14,9 @@ type UserServiceImpl struct {
 
 // NewUserServiceImpl is a constructor that builds and returns a new
 // UserService instance with the provided UserRepository wired in.
-func NewUserService(userRepository db.UserRepository) UserService {
+func NewUserService(userRepo db.UserRepository) UserService {
 	return &UserServiceImpl{
-		userRepository: userRepository,
+		userRepository: userRepo,
 	}
 }
 
