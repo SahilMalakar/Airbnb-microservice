@@ -12,6 +12,9 @@ import (
 // when the application shuts down.
 func LoadDb() (*sql.DB, error) {
 	dsn := GetEnvString("DATABASE_URL", "")
+
+	fmt.Println("data from env ", dsn)
+
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)

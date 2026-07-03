@@ -1,0 +1,7 @@
+-- +goose Up
+ALTER TABLE users DROP COLUMN id;
+ALTER TABLE users ADD COLUMN id BIGSERIAL PRIMARY KEY;
+
+-- +goose Down
+ALTER TABLE users DROP COLUMN id;
+ALTER TABLE users ADD COLUMN id UUID PRIMARY KEY DEFAULT gen_random_uuid();
