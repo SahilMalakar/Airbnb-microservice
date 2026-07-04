@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/dto"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/service"
@@ -74,15 +75,42 @@ func (u *UserController) RefreshToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (u *UserController) Logout(w http.ResponseWriter, r *http.Request) {
+
+	userID := r.Header.Get("X-User-ID")
+	id, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid user id"})
+		return
+	}
+	user, err := u.UserService.GetUserByIDService(id)
+	if err != nil {
+		utils.WriteJSONResponse(w, http.StatusNotFound, map[string]string{"error": "user not found"})
+		return
+	}
+
 	utils.ClearAuthCookies(w)
-	utils.WriteJSONResponse(w, http.StatusOK, map[string]string{"message": "logged out"})
+	utils.WriteJSONResponse(w, http.StatusOK, map[string]string{"message": "logged out", "user-email": user.Email, "role": string(user.Role)})
 }
 
 func (u *UserController) GetAllUsersHandler(w http.ResponseWriter, r *http.Request) {
+
+	userID := r.Header.Get("X-User-ID")
+	id, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid user id"})
+		return
+	}
+	_, err = u.UserService.GetUserByIDService(id)
+	if err != nil {
+		utils.WriteJSONResponse(w, http.StatusNotFound, map[string]string{"error": "user not found"})
+		return
+	}
+
 	users, err := u.UserService.GetAllUsersService()
 	if err != nil {
 		utils.WriteJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	utils.WriteJSONResponse(w, http.StatusOK, users)
+
+	utils.WriteJSONResponse(w, http.StatusOK, map[string]any{"message": "users fetched successfully", "data": users})
 }

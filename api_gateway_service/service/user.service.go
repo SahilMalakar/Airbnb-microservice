@@ -15,6 +15,7 @@ type UserService interface {
 	LoginService(data *dto.LoginRequestDTO) (*models.User, string, string, error)
 	RefreshTokenService(refreshToken string) (string, string, error)
 	GetAllUsersService() ([]*models.User, error)
+	GetUserByIDService(id int64) (*models.User, error)
 }
 
 // UserServiceImpl is the concrete, database-backed implementation of
@@ -151,4 +152,12 @@ func (u *UserServiceImpl) GetAllUsersService() ([]*models.User, error) {
 		return nil, fmt.Errorf("failed to get all users")
 	}
 	return users, nil
+}
+
+func (u *UserServiceImpl) GetUserByIDService(id int64) (*models.User, error) {
+	user, err := u.userRepository.GetUserByID(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user")
+	}
+	return user, nil
 }
