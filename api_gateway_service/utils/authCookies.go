@@ -7,7 +7,7 @@ import (
 
 // setAuthCookies writes the access and refresh tokens as HttpOnly cookies.
 // Expiry durations here must stay in sync with utils.CreateAccessToken (30m)
-// and utils.CreateRefreshToken (7d).
+// and utils.CreateRefreshToken (3d).
 func SetAuthCookies(w http.ResponseWriter, accessToken, refreshToken string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
