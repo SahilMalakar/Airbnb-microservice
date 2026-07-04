@@ -17,4 +17,7 @@ func NewUserRouter(userController *handler.UserController) Router {
 
 func (router *UserRouter) Register(r chi.Router) {
 	r.Post("/signup", router.UserController.SignUp)
+	r.Post("/login", router.UserController.Login)
+	r.Post("/refresh", router.UserController.RefreshToken)
+	r.Post("/logout", router.UserController.Logout)
 }

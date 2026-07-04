@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/models"
@@ -11,8 +12,10 @@ import (
 type UserRepository interface {
 	Create(name, email, hashPassword string,
 		role models.Role) (*models.User, error)
+	GetUserByEmail(email string) (*models.User, error)
+	GetUserByID(id int64) (*models.User, error)
+
 	// GetUsers() ([]User, error)
-	// GetUserByID(id int64) (*models.User, error)
 	// Update(id int64, user *User) error
 	// Delete(id int64) error
 }
@@ -29,21 +32,22 @@ func NewUserRepository(conn *sql.DB) UserRepository {
 	}
 }
 
-func (u *UserRepositoryImpl) GetUserByID(id int64) (*models.User, error) {
-	query := `SELECT * FROM users WHERE id = $1`
+func (u *UserRepositoryImpl) GetUserByEmail(email string) (*models.User, error) {
+	query := `SELECT id, name, email, password, role, created_at, updated_at FROM users WHERE email = $1`
 	user := &models.User{}
 
-	row := u.db.QueryRow(query, id)
-
-	if err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt); err != nil {
-		return nil, err
+	row := u.db.QueryRow(query, email)
+	if err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Role, &user.CreatedAt, &user.UpdatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("user with email %s not found", email)
+		}
+		return nil, fmt.Errorf("querying user by email: %w", err)
 	}
 
 	return user, nil
 }
 
 // Create persists a new user record.
-// TODO: not yet implemented — currently a no-op.
 func (u *UserRepositoryImpl) Create(
 	name, email, hashPassword string,
 	role models.Role) (*models.User, error) {
@@ -58,8 +62,26 @@ func (u *UserRepositoryImpl) Create(
 		&user.ID, &user.Name, &user.Email, &user.Role, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("user already exists")
+		}
 		return nil, err
 	}
 
 	return &user, nil
+}
+
+func (u *UserRepositoryImpl) GetUserByID(id int64) (*models.User, error) {
+	query := `SELECT id, name, email, password, role, created_at, updated_at FROM users WHERE id = $1`
+	user := &models.User{}
+
+	row := u.db.QueryRow(query, id)
+	if err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Role, &user.CreatedAt, &user.UpdatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("user with id %d not found", id)
+		}
+		return nil, err
+	}
+
+	return user, nil
 }
