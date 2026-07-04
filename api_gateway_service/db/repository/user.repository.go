@@ -11,14 +11,10 @@ import (
 
 // UserRepository defines the data-access operations available for users.
 type UserRepository interface {
-	Create(name, email, hashPassword string,
-		role models.Role) (*models.User, error)
+	Create(name, email, hashPassword string) (*models.User, error)
 	GetUserByEmail(email string) (*models.User, error)
 	GetUserByID(id int64) (*models.User, error)
-
-	// GetUsers() ([]User, error)
-	// Update(id int64, user *User) error
-	// Delete(id int64) error
+	GetAllUsers() ([]*models.User, error)
 }
 
 // UserRepositoryImpl is the concrete, database-backed implementation of
@@ -37,20 +33,19 @@ func NewUserRepository(conn *sql.DB) UserRepository {
 var ErrEmailNotFound = errors.New("email not found")
 
 func (u *UserRepositoryImpl) GetUserByEmail(email string) (*models.User, error) {
-	fmt.Printf("[DEBUG] UserRepository: GetUserByEmail database query started for email %q\n", email)
+
 	query := `SELECT id, name, email, password, role, created_at, updated_at FROM users WHERE email = $1`
 	user := &models.User{}
 
 	row := u.db.QueryRow(query, email)
 	if err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Role, &user.CreatedAt, &user.UpdatedAt); err != nil {
-		fmt.Printf("[DEBUG] UserRepository: GetUserByEmail Scan error: %v\n", err)
+
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrEmailNotFound
 		}
 		return nil, fmt.Errorf("querying user by email: %w", err)
 	}
 
-	fmt.Printf("[DEBUG] UserRepository: GetUserByEmail Scan success: found user ID %d\n", user.ID)
 	return user, nil
 }
 
@@ -61,14 +56,15 @@ var ErrEmailAlreadyExists = errors.New("email already exists")
 // Create persists a new user record.
 func (u *UserRepositoryImpl) Create(
 	name, email, hashPassword string,
-	role models.Role) (*models.User, error) {
+) (*models.User, error) {
 
 	query := `INSERT INTO users (name, email, password, role) 
-		VALUES ($1, $2, $3, $4) 
+		VALUES ($1, $2, $3, 'user') 
 		RETURNING id, name, email, role, created_at, updated_at`
 
 	var user models.User
-	err := u.db.QueryRow(query, name, email, hashPassword, role).Scan(
+
+	err := u.db.QueryRow(query, name, email, hashPassword).Scan(
 		&user.ID, &user.Name, &user.Email, &user.Role, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
@@ -98,4 +94,25 @@ func (u *UserRepositoryImpl) GetUserByID(id int64) (*models.User, error) {
 	}
 
 	return user, nil
+}
+
+func (u *UserRepositoryImpl) GetAllUsers() ([]*models.User, error) {
+	query := `SELECT id, name, email, password, role, created_at, updated_at FROM users`
+	rows, err := u.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	// Ensure rows are closed after processing
+	defer rows.Close()
+
+	var users []*models.User
+	for rows.Next() {
+		user := &models.User{}
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Role, &user.CreatedAt, &user.UpdatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
 }

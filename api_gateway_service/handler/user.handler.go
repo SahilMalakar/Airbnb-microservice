@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/dto"
-	"github.com/sahilmalakar/airbnb-microservice/api-gateway/models"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/service"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/utils"
 )
@@ -19,31 +18,11 @@ func NewUserController(userService service.UserService) *UserController {
 	}
 }
 
-func (u *UserController) SignUp(w http.ResponseWriter, r *http.Request) {
-	var req dto.SignUpRequestDTO
-	if err := utils.ReadJSONRequest(w, r, &req); err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
-		return
-	}
+// SignUp is now a ValidatedHandler[dto.SignUpRequestDTO] — decode + validate
+// already happened in middleware.DecodeAndValidate before this runs.
+func (u *UserController) SignUp(w http.ResponseWriter, r *http.Request, req dto.SignUpRequestDTO) {
 
-	if err := utils.ValidateStruct(req); err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-		return
-	}
-
-	role := models.RoleUser
-	if req.Role == string(models.RoleHost) {
-		role = models.RoleHost
-	}
-
-	user := &models.User{
-		Name:     req.Name,
-		Email:    req.Email,
-		Password: req.Password,
-		Role:     role,
-	}
-
-	createdUser, accessToken, refreshToken, err := u.UserService.SignUpService(user)
+	createdUser, accessToken, refreshToken, err := u.UserService.SignUpService(&req)
 	if err != nil {
 		utils.WriteJSONResponse(w, http.StatusConflict, map[string]string{"error": err.Error()})
 		return
@@ -57,24 +36,10 @@ func (u *UserController) SignUp(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (u *UserController) Login(w http.ResponseWriter, r *http.Request) {
-	var req dto.LoginRequestDTO
-	if err := utils.ReadJSONRequest(w, r, &req); err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
-		return
-	}
+// Login is now a ValidatedHandler[dto.LoginRequestDTO].
+func (u *UserController) Login(w http.ResponseWriter, r *http.Request, req dto.LoginRequestDTO) {
 
-	if err := utils.ValidateStruct(req); err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-		return
-	}
-
-	user := &models.User{
-		Email:    req.Email,
-		Password: req.Password,
-	}
-
-	existingUser, accessToken, refreshToken, err := u.UserService.LoginService(user)
+	existingUser, accessToken, refreshToken, err := u.UserService.LoginService(&req)
 	if err != nil {
 		utils.WriteJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": err.Error()})
 		return
@@ -88,6 +53,8 @@ func (u *UserController) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// RefreshToken and Logout don't take a request body, so they stay as
+// plain http.HandlerFunc — no DecodeAndValidate needed.
 func (u *UserController) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
