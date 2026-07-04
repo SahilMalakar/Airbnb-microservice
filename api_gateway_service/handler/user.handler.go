@@ -77,3 +77,12 @@ func (u *UserController) Logout(w http.ResponseWriter, r *http.Request) {
 	utils.ClearAuthCookies(w)
 	utils.WriteJSONResponse(w, http.StatusOK, map[string]string{"message": "logged out"})
 }
+
+func (u *UserController) GetAllUsersHandler(w http.ResponseWriter, r *http.Request) {
+	users, err := u.UserService.GetAllUsersService()
+	if err != nil {
+		utils.WriteJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	utils.WriteJSONResponse(w, http.StatusOK, users)
+}

@@ -14,6 +14,7 @@ type UserService interface {
 	SignUpService(data *dto.SignUpRequestDTO) (*models.User, string, string, error)
 	LoginService(data *dto.LoginRequestDTO) (*models.User, string, string, error)
 	RefreshTokenService(refreshToken string) (string, string, error)
+	GetAllUsersService() ([]*models.User, error)
 }
 
 // UserServiceImpl is the concrete, database-backed implementation of
@@ -113,7 +114,7 @@ func (u *UserServiceImpl) LoginService(data *dto.LoginRequestDTO) (*models.User,
 func (u *UserServiceImpl) RefreshTokenService(refreshToken string) (string, string, error) {
 
 	// 1. validate the refresh token
-	claims, err := utils.ValidateRefreshToken(refreshToken)
+	claims, err := utils.VerifyRefreshToken(refreshToken)
 	if err != nil {
 		return "", "", fmt.Errorf("invalid refresh token")
 	}
@@ -142,4 +143,12 @@ func (u *UserServiceImpl) RefreshTokenService(refreshToken string) (string, stri
 	}
 
 	return newAccessToken, newRefreshToken, nil
+}
+
+func (u *UserServiceImpl) GetAllUsersService() ([]*models.User, error) {
+	users, err := u.userRepository.GetAllUsers()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all users")
+	}
+	return users, nil
 }

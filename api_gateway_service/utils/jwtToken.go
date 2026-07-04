@@ -39,16 +39,26 @@ func CreateRefreshToken(id int64) (string, error) {
 	return tokenString, nil
 }
 
-func ValidateRefreshToken(tokenString string) (jwt.MapClaims, error) {
+// VerifyAccessToken validates a token signed with jwtSecretKey (30-min access tokens).
+func VerifyAccessToken(tokenString string) (jwt.MapClaims, error) {
+	return verifyToken(tokenString, jwtSecretKey)
+}
+
+// VerifyRefreshToken validates a token signed with refreshSecretKey (3-day refresh tokens).
+func VerifyRefreshToken(tokenString string) (jwt.MapClaims, error) {
+	return verifyToken(tokenString, refreshSecretKey)
+}
+
+func verifyToken(tokenString string, secret []byte) (jwt.MapClaims, error) {
 	claims := jwt.MapClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
-		return refreshSecretKey, nil
+		return secret, nil
 	})
 	if err != nil || !token.Valid {
-		return nil, fmt.Errorf("invalid refresh token")
+		return nil, fmt.Errorf("invalid or expired token")
 	}
 	return claims, nil
 }
