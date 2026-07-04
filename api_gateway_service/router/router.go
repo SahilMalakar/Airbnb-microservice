@@ -1,9 +1,13 @@
 package router
 
 import (
+	"time"
+
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
+	chimiddleware "github.com/go-chi/chi/middleware"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/handler"
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/middleware"
+	"golang.org/x/time/rate"
 )
 
 type Router interface {
@@ -17,10 +21,14 @@ func SetUpRouter(UserRouter Router) *chi.Mux {
 	router := chi.NewRouter()
 
 	// Middleware: log every request (method, path, status, duration)
-	router.Use(middleware.Logger)
+	router.Use(chimiddleware.Logger)
 	// Middleware: recover from panics and log the stack trace
-	router.Use(middleware.Recoverer)
+	router.Use(chimiddleware.Recoverer)
+	// Middleware: rate limiting
+	limiter := rate.NewLimiter(rate.Every(1*time.Minute), 20)
+	router.Use(middleware.RateLimiter(limiter))
 
+	// routes
 	router.Get("/health", handler.HealthHandler)
 
 	UserRouter.Register(router)
