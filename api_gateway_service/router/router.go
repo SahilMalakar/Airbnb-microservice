@@ -7,6 +7,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/middleware"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/handler"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/middleware"
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/utils"
 	"golang.org/x/time/rate"
 )
 
@@ -31,7 +32,14 @@ func SetUpRouter(UserRouter Router) *chi.Mux {
 	// routes
 	router.Get("/health", handler.HealthHandler)
 
+	// proxy the request
+	fakeAPIProxy := utils.ProxyToService("https://fakeapi.net", "/fakeapi")
+	router.Get("/fakeapi", fakeAPIProxy)
+	router.Get("/fakeapi/*", fakeAPIProxy)
+
 	UserRouter.Register(router)
 
 	return router
 }
+
+// https://fakeapi.net/products
