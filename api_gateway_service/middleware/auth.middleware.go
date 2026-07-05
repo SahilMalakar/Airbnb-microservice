@@ -37,17 +37,13 @@ func AuthCookie(next http.Handler) http.Handler {
 			return
 		}
 
-		role, ok := claims["role"].(string)
-		if !ok {
-			utils.WriteJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": "invalid token claims"})
-			return
-		}
+		// we need to send the role also
+
 
 		userID := int64(idFloat)
 
 		r.Header.Set("X-User-ID", strconv.FormatInt(userID, 10))
 		r.Header.Set("X-User-Email", email)
-		r.Header.Set("X-User-Role", role)
 
 		next.ServeHTTP(w, r)
 	})
