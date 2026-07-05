@@ -64,7 +64,7 @@ func (u *UserServiceImpl) SignUpService(data *dto.SignUpRequestDTO) (*models.Use
 	}
 
 	// 4. generate access token
-	accessToken, err := utils.CreateAccessToken(createdUser.ID, createdUser.Email, string(createdUser.Role))
+	accessToken, err := utils.CreateAccessToken(createdUser.ID, createdUser.Email)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate access token")
 	}
@@ -94,7 +94,7 @@ func (u *UserServiceImpl) LoginService(data *dto.LoginRequestDTO) (*models.User,
 	}
 
 	// 3. generate access token
-	accessToken, err := utils.CreateAccessToken(existingUser.ID, existingUser.Email, string(existingUser.Role))
+	accessToken, err := utils.CreateAccessToken(existingUser.ID, existingUser.Email)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate access token")
 	}
@@ -133,7 +133,7 @@ func (u *UserServiceImpl) RefreshTokenService(refreshToken string) (string, stri
 	}
 
 	// 3. issue new token pair
-	newAccessToken, err := utils.CreateAccessToken(existingUser.ID, existingUser.Email, string(existingUser.Role))
+	newAccessToken, err := utils.CreateAccessToken(existingUser.ID, existingUser.Email)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate access token")
 	}

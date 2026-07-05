@@ -89,7 +89,7 @@ func (u *UserController) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.ClearAuthCookies(w)
-	utils.WriteJSONResponse(w, http.StatusOK, map[string]string{"message": "logged out", "user-email": user.Email, "role": string(user.Role)})
+	utils.WriteJSONResponse(w, http.StatusOK, map[string]string{"message": "logged out", "user-email": user.Email})
 }
 
 func (u *UserController) GetAllUsersHandler(w http.ResponseWriter, r *http.Request) {
