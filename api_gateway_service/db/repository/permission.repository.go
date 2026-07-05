@@ -37,6 +37,7 @@ func (r *PermissionRepositoryImpl) GetPermissionById(id int64) (*models.Permissi
 	row := r.db.QueryRow(query, id)
 
 	var permission models.Permission
+
 	err := row.Scan(&permission.ID, &permission.Name, &permission.Description, &permission.Resource, &permission.Action, &permission.CreatedAt, &permission.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -53,6 +54,7 @@ func (r *PermissionRepositoryImpl) GetPermissionByName(name string) (*models.Per
 	row := r.db.QueryRow(query, name)
 
 	var permission models.Permission
+
 	err := row.Scan(&permission.ID, &permission.Name, &permission.Description, &permission.Resource, &permission.Action, &permission.CreatedAt, &permission.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -73,6 +75,7 @@ func (r *PermissionRepositoryImpl) GetAllPermissions() ([]*models.Permission, er
 	defer rows.Close()
 
 	var permissions []*models.Permission
+
 	for rows.Next() {
 		permission := &models.Permission{}
 		if err := rows.Scan(&permission.ID, &permission.Name, &permission.Description, &permission.Resource, &permission.Action, &permission.CreatedAt, &permission.UpdatedAt); err != nil {
@@ -95,6 +98,7 @@ func (r *PermissionRepositoryImpl) CreatePermission(name string, description str
 	row := r.db.QueryRow(query, name, description, resource, action)
 
 	var permission models.Permission
+
 	err := row.Scan(&permission.ID, &permission.Name, &permission.Description, &permission.Resource, &permission.Action, &permission.CreatedAt, &permission.UpdatedAt)
 	if err != nil {
 		var pqErr *pq.Error
@@ -119,6 +123,7 @@ func (r *PermissionRepositoryImpl) UpdatePermissionById(id int64, name string, d
 	row := r.db.QueryRow(query, id, name, description, resource, action)
 
 	var permission models.Permission
+	
 	err := row.Scan(&permission.ID, &permission.Name, &permission.Description, &permission.Resource, &permission.Action, &permission.CreatedAt, &permission.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
