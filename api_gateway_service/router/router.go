@@ -17,7 +17,13 @@ type Router interface {
 
 // SetUpRouter builds and returns the chi router with all application
 // routes registered.
-func SetUpRouter(UserRouter Router) *chi.Mux {
+func SetUpRouter(
+	UserRouter Router,
+	RoleRouter Router,
+	PermissionRouter Router,
+	RolePermissionRouter Router,
+	UserRoleRouter Router,
+) *chi.Mux {
 
 	router := chi.NewRouter()
 
@@ -38,6 +44,10 @@ func SetUpRouter(UserRouter Router) *chi.Mux {
 	router.Get("/fakeapi/*", fakeAPIProxy)
 
 	UserRouter.Register(router)
+	RoleRouter.Register(router)
+	PermissionRouter.Register(router)
+	RolePermissionRouter.Register(router)
+	UserRoleRouter.Register(router)
 
 	return router
 }

@@ -57,8 +57,24 @@ func (a *Application) RunServer() error {
 	userService := service.NewUserService(userRepo)
 	userController := handler.NewUserController(userService)
 	userRouter := router.NewUserRouter(userController)
+	roleRepo := db.NewRoleRepository(conn)
+	roleService := service.NewRoleService(roleRepo)
+	roleController := handler.NewRoleController(roleService)
+	roleRouter := router.NewRoleRouter(roleController)
+	permissionRepo := db.NewPermissionRepository(conn)
+	permissionService := service.NewPermissionService(permissionRepo)
+	permissionController := handler.NewPermissionController(permissionService)
+	permissionRouter := router.NewPermissionRouter(permissionController)
+	rolePermissionRepo := db.NewRolePermissionRepository(conn)
+	rolePermissionService := service.NewRolePermissionService(rolePermissionRepo)
+	rolePermissionController := handler.NewRolePermissionController(rolePermissionService)
+	rolePermissionRouter := router.NewRolePermissionRouter(rolePermissionController)
+	userRoleRepo := db.NewUserRoleRepository(conn)
+	userRoleService := service.NewUserRoleService(userRoleRepo)
+	userRoleController := handler.NewUserRoleController(userRoleService)
+	userRoleRouter := router.NewUserRoleRouter(userRoleController)
 
-	chi := router.SetUpRouter(userRouter)
+	chi := router.SetUpRouter(userRouter, roleRouter, permissionRouter, rolePermissionRouter, userRoleRouter)
 
 	server := &http.Server{
 		Addr:         a.Config.Address,

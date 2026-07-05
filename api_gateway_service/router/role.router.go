@@ -17,7 +17,7 @@ func NewRoleRouter(roleController *handler.RoleController) Router {
 }
 
 func (router *RoleRouter) Register(r chi.Router) {
-	r.Route("/roles", func(r chi.Router) {
+	r.Route("/role", func(r chi.Router) {
 		r.Use(middleware.AuthCookie) // admin-only management; add role check middleware once RequirePermission exists
 		r.Get("/", router.RoleController.GetAllRoles)
 		r.Post("/", middleware.DecodeAndValidate(router.RoleController.CreateRole))
