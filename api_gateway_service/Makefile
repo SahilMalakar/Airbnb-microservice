@@ -8,6 +8,9 @@ DATABASE_URL := $(shell echo $(DATABASE_URL) | sed -e 's/^"//' -e 's/"$$//')
 PORT := $(shell echo $(PORT) | sed -e 's/^"//' -e 's/"$$//')
 
 # --- Migrations ---
+migrate-create:
+	goose -dir db/migration create ${name} sql
+
 migrate-up:
 	goose -dir db/migration postgres "$(DATABASE_URL)" up
 

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -37,6 +38,9 @@ func ProxyToService(targetBaseUrl string, pathPrefix string) http.HandlerFunc {
 			w.Write([]byte(`{"error":"upstream service unavailable"}`))
 		},
 	}
+
+	fmt.Println("Proxying the request to : ", targetBaseUrl)
+	fmt.Println("pathPrefix : ", pathPrefix)
 
 	return proxy.ServeHTTP
 }
