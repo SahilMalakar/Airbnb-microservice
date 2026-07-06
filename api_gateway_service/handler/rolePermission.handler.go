@@ -21,7 +21,7 @@ func NewRolePermissionController(rolePermissionService service.RolePermissionSer
 }
 
 func (c *RolePermissionController) GetRolePermissionsByRoleID(w http.ResponseWriter, r *http.Request) {
-	roleId, err := strconv.ParseInt(chi.URLParam(r, "roleId"), 10, 64)
+	roleId, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid role id"})
 		return
@@ -51,7 +51,7 @@ func (c *RolePermissionController) AddPermission(w http.ResponseWriter, r *http.
 }
 
 func (c *RolePermissionController) RemovePermission(w http.ResponseWriter, r *http.Request) {
-	roleId, err := strconv.ParseInt(chi.URLParam(r, "roleId"), 10, 64)
+	roleId, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid role id"})
 		return

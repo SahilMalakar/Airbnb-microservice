@@ -13,7 +13,7 @@ var ErrPermissionAlreadyAssigned = errors.New("permission already assigned to ro
 
 type RolePermissionRepository interface {
 	GetRolePermissionById(id int64) (*models.RolePermission, error)
-	GetRolePermissionByRoleId(roleId int64) ([]*models.RolePermission, error)
+	GetRolePermissionByRoleId(roleId int64) ([]*models.RolePermissionDetail, error)
 	AddPermissionToRole(roleId int64, permissionId int64) (*models.RolePermission, error)
 	RemovePermissionFromRole(roleId int64, permissionId int64) error
 	GetAllRolePermissions() ([]*models.RolePermission, error)
@@ -45,8 +45,22 @@ func (r *RolePermissionRepositoryImpl) GetRolePermissionById(id int64) (*models.
 	return &rp, nil
 }
 
-func (r *RolePermissionRepositoryImpl) GetRolePermissionByRoleId(roleId int64) ([]*models.RolePermission, error) {
-	query := `SELECT id, role_id, permission_id, created_at, updated_at FROM role_permissions WHERE role_id = $1`
+func (r *RolePermissionRepositoryImpl) GetRolePermissionByRoleId(roleId int64) ([]*models.RolePermissionDetail, error) {
+	query := `
+		SELECT
+			rp.id,
+			rp.role_id,
+			ro.name AS role_name,
+			rp.permission_id,
+			p.name AS permission_name,
+			p.resource,
+			p.action,
+			rp.created_at,
+			rp.updated_at
+		FROM role_permissions rp
+		INNER JOIN roles ro ON ro.id = rp.role_id
+		INNER JOIN permissions p ON p.id = rp.permission_id
+		WHERE rp.role_id = $1`
 
 	rows, err := r.db.Query(query, roleId)
 	if err != nil {
@@ -54,10 +68,20 @@ func (r *RolePermissionRepositoryImpl) GetRolePermissionByRoleId(roleId int64) (
 	}
 	defer rows.Close()
 
-	var rolePermissions []*models.RolePermission
+	var rolePermissions []*models.RolePermissionDetail
 	for rows.Next() {
-		rp := &models.RolePermission{}
-		if err := rows.Scan(&rp.ID, &rp.RoleID, &rp.PermissionID, &rp.CreatedAt, &rp.UpdatedAt); err != nil {
+		rp := &models.RolePermissionDetail{}
+		if err := rows.Scan(
+			&rp.ID,
+			&rp.RoleID,
+			&rp.RoleName,
+			&rp.PermissionID,
+			&rp.PermissionName,
+			&rp.Resource,
+			&rp.Action,
+			&rp.CreatedAt,
+			&rp.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		rolePermissions = append(rolePermissions, rp)

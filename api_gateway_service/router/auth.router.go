@@ -21,5 +21,6 @@ func (router *UserRouter) Register(r chi.Router) {
 	r.Post("/login", middleware.DecodeAndValidate(router.UserController.Login))
 	r.Post("/refresh", router.UserController.RefreshToken)
 	r.With(middleware.AuthCookie).Post("/logout", router.UserController.Logout)
-	r.With(middleware.AuthCookie).Get("/users", router.UserController.GetAllUsersHandler)
+	r.With(middleware.AuthCookie, middleware.RequirePermission("user:read")).
+		Get("/users", router.UserController.GetAllUsersHandler)
 }

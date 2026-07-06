@@ -11,7 +11,7 @@ import (
 
 type RolePermissionService interface {
 	GetRolePermissionByIDService(id int64) (*models.RolePermission, error)
-	GetRolePermissionsByRoleIDService(roleId int64) ([]*models.RolePermission, error)
+	GetRolePermissionsByRoleIDService(roleId int64) ([]*models.RolePermissionDetail, error)
 	AddPermissionToRoleService(roleId int64, data *dto.AddPermissionRequestDTO) (*models.RolePermission, error)
 	RemovePermissionFromRoleService(roleId int64, permissionId int64) error
 	GetAllRolePermissionsService() ([]*models.RolePermission, error)
@@ -35,7 +35,7 @@ func (s *RolePermissionServiceImpl) GetRolePermissionByIDService(id int64) (*mod
 	return rp, nil
 }
 
-func (s *RolePermissionServiceImpl) GetRolePermissionsByRoleIDService(roleId int64) ([]*models.RolePermission, error) {
+func (s *RolePermissionServiceImpl) GetRolePermissionsByRoleIDService(roleId int64) ([]*models.RolePermissionDetail, error) {
 	rps, err := s.rolePermissionRepository.GetRolePermissionByRoleId(roleId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get role permissions")

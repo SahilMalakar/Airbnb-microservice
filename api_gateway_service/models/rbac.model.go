@@ -35,3 +35,16 @@ type UserRoles struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
+
+// models/role_permission_detail.go (or wherever you keep view/aggregate models)
+type RolePermissionDetail struct {
+	ID             int64     `json:"id"`
+	RoleID         int64     `json:"role_id"`
+	RoleName       string    `json:"role_name"`
+	PermissionID   int64     `json:"permission_id"`
+	PermissionName string    `json:"permission_name"`
+	Resource       string    `json:"resource"`
+	Action         string    `json:"action"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
