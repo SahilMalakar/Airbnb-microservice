@@ -19,9 +19,11 @@ func NewUserRoleRouter(userRoleController *handler.UserRoleController) Router {
 func (router *UserRoleRouter) Register(r chi.Router) {
 	r.Route("/users/{userId}/roles", func(r chi.Router) {
 		r.Use(middleware.AuthCookie)
+		r.Use(middleware.RequirePermission("role:manage"))
 		r.Get("/", router.UserRoleController.GetUserRoles)
 		r.Post("/", middleware.DecodeAndValidate(router.UserRoleController.AssignRole))
 		r.Delete("/{roleId}", router.UserRoleController.RemoveRole)
 	})
-	r.With(middleware.AuthCookie).Get("/users/{userId}/permissions", router.UserRoleController.GetUserPermissions)
+	r.With(middleware.AuthCookie, middleware.RequirePermission("role:manage")).
+		Get("/users/{userId}/permissions", router.UserRoleController.GetUserPermissions)
 }

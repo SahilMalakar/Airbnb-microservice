@@ -53,23 +53,31 @@ func (a *Application) RunServer() error {
 	defer conn.Close()
 
 	// Wire dependencies: DB → Repository → Service → Controller → Router
+	// Repositories that UserService depends on must be created first.
+	roleRepo := db.NewRoleRepository(conn)
+	permissionRepo := db.NewPermissionRepository(conn)
+	rolePermissionRepo := db.NewRolePermissionRepository(conn)
+	userRoleRepo := db.NewUserRoleRepository(conn)
 	userRepo := db.NewUserRepository(conn)
-	userService := service.NewUserService(userRepo)
+
+	// UserService now needs roleRepo + userRoleRepo to resolve default role
+	// and embed roles/permissions into JWTs at login/signup/refresh.
+	userService := service.NewUserService(userRepo, userRoleRepo, roleRepo)
 	userController := handler.NewUserController(userService)
 	userRouter := router.NewUserRouter(userController)
-	roleRepo := db.NewRoleRepository(conn)
+
 	roleService := service.NewRoleService(roleRepo)
 	roleController := handler.NewRoleController(roleService)
 	roleRouter := router.NewRoleRouter(roleController)
-	permissionRepo := db.NewPermissionRepository(conn)
+
 	permissionService := service.NewPermissionService(permissionRepo)
 	permissionController := handler.NewPermissionController(permissionService)
 	permissionRouter := router.NewPermissionRouter(permissionController)
-	rolePermissionRepo := db.NewRolePermissionRepository(conn)
+
 	rolePermissionService := service.NewRolePermissionService(rolePermissionRepo)
 	rolePermissionController := handler.NewRolePermissionController(rolePermissionService)
 	rolePermissionRouter := router.NewRolePermissionRouter(rolePermissionController)
-	userRoleRepo := db.NewUserRoleRepository(conn)
+
 	userRoleService := service.NewUserRoleService(userRoleRepo)
 	userRoleController := handler.NewUserRoleController(userRoleService)
 	userRoleRouter := router.NewUserRoleRouter(userRoleController)

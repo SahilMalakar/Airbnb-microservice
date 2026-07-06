@@ -11,11 +11,13 @@ import (
 var jwtSecretKey = []byte(config.GetEnvString("ACCESS_KEY_TOKEN", ""))
 var refreshSecretKey = []byte(config.GetEnvString("REFRESH_TOKEN_SECRET", ""))
 
-func CreateAccessToken(id int64, email string) (string, error) {
+func CreateAccessToken(id int64, email string, roles []string, permissions []string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":    id,
-		"email": email,
-		"exp":   time.Now().Add(time.Minute * 30).Unix(),
+		"id":          id,
+		"email":       email,
+		"roles":       roles,
+		"permissions": permissions,
+		"exp":         time.Now().Add(time.Minute * 30).Unix(),
 	})
 
 	tokenString, err := token.SignedString(jwtSecretKey)

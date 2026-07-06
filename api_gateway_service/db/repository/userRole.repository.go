@@ -18,6 +18,8 @@ type UserRoleRepository interface {
 	GetUserPermissions(userId int64) ([]*models.Permission, error)
 	HasPermission(userId int64, permissionName string) (bool, error)
 	HasRole(userId int64, roleName string) (bool, error)
+	GetUserRoleNames(userId int64) ([]string, error)
+	GetUserPermissionNames(userId int64) ([]string, error)
 }
 
 type UserRoleRepositoryImpl struct {
@@ -152,4 +154,53 @@ func (r *UserRoleRepositoryImpl) HasRole(userId int64, roleName string) (bool, e
 		return false, err
 	}
 	return exists, nil
+}
+
+func (r *UserRoleRepositoryImpl) GetUserRoleNames(userId int64) ([]string, error) {
+	query := `
+		SELECT ro.name
+		FROM roles ro
+		INNER JOIN user_roles ur ON ur.role_id = ro.id
+		WHERE ur.user_id = $1`
+
+	rows, err := r.db.Query(query, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
+}
+
+func (r *UserRoleRepositoryImpl) GetUserPermissionNames(userId int64) ([]string, error) {
+	query := `
+		SELECT DISTINCT p.name
+		FROM permissions p
+		INNER JOIN role_permissions rp ON rp.permission_id = p.id
+		INNER JOIN user_roles ur ON ur.role_id = rp.role_id
+		WHERE ur.user_id = $1`
+
+	rows, err := r.db.Query(query, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
 }

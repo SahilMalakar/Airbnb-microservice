@@ -19,6 +19,7 @@ func NewPermissionRouter(permissionController *handler.PermissionController) Rou
 func (router *PermissionRouter) Register(r chi.Router) {
 	r.Route("/permissions", func(r chi.Router) {
 		r.Use(middleware.AuthCookie)
+		r.Use(middleware.RequirePermission("permission:manage"))
 		r.Get("/", router.PermissionController.GetAllPermissions)
 		r.Post("/", middleware.DecodeAndValidate(router.PermissionController.CreatePermission))
 		r.Get("/{id}", router.PermissionController.GetPermissionByID)

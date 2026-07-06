@@ -16,6 +16,7 @@ type UserRoleService interface {
 	GetUserPermissionsService(userId int64) ([]*models.Permission, error)
 	HasPermissionService(userId int64, permissionName string) (bool, error)
 	HasRoleService(userId int64, roleName string) (bool, error)
+	GetUserAuthClaimsService(userId int64) (*UserAuthClaims, error)
 }
 
 type UserRoleServiceImpl struct {
@@ -71,4 +72,23 @@ func (s *UserRoleServiceImpl) HasPermissionService(userId int64, permissionName 
 
 func (s *UserRoleServiceImpl) HasRoleService(userId int64, roleName string) (bool, error) {
 	return s.userRoleRepository.HasRole(userId, roleName)
+}
+
+// service/user_role_service.go — add
+
+type UserAuthClaims struct {
+	Roles       []string
+	Permissions []string
+}
+
+func (s *UserRoleServiceImpl) GetUserAuthClaimsService(userId int64) (*UserAuthClaims, error) {
+	roles, err := s.userRoleRepository.GetUserRoleNames(userId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load user roles")
+	}
+	permissions, err := s.userRoleRepository.GetUserPermissionNames(userId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load user permissions")
+	}
+	return &UserAuthClaims{Roles: roles, Permissions: permissions}, nil
 }

@@ -17,11 +17,13 @@ func NewRolePermissionRouter(rolePermissionController *handler.RolePermissionCon
 }
 
 func (router *RolePermissionRouter) Register(r chi.Router) {
-	r.Route("/roles/{roleId}/permissions", func(r chi.Router) {
+	r.Route("/roles/{id}/permissions", func(r chi.Router) {
 		r.Use(middleware.AuthCookie)
+		r.Use(middleware.RequirePermission("permission:manage"))
 		r.Get("/", router.RolePermissionController.GetRolePermissionsByRoleID)
 		r.Post("/", middleware.DecodeAndValidate(router.RolePermissionController.AddPermission))
 		r.Delete("/{permissionId}", router.RolePermissionController.RemovePermission)
 	})
-	r.With(middleware.AuthCookie).Get("/role-permissions", router.RolePermissionController.GetAllRolePermissions)
+	r.With(middleware.AuthCookie, middleware.RequirePermission("permission:manage")).
+		Get("/role-permissions", router.RolePermissionController.GetAllRolePermissions)
 }

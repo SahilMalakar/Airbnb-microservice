@@ -19,7 +19,6 @@ func NewUserRouter(userController *handler.UserController) Router {
 func (router *UserRouter) Register(r chi.Router) {
 	r.Post("/signup", middleware.DecodeAndValidate(router.UserController.SignUp))
 	r.Post("/login", middleware.DecodeAndValidate(router.UserController.Login))
-	// no request body, no DecodeAndValidate wrapper needed
 	r.Post("/refresh", router.UserController.RefreshToken)
 	r.With(middleware.AuthCookie).Post("/logout", router.UserController.Logout)
 	r.With(middleware.AuthCookie).Get("/users", router.UserController.GetAllUsersHandler)
