@@ -8,7 +8,9 @@ let redisInstance: Redis | null = null;
 // singletone pattern
 export function getRedisClient(): Redis {
     if (!redisInstance) {
-        redisInstance = new Redis(RedisConfig.REDIS_URL);
+        redisInstance = new Redis(RedisConfig.REDIS_URL, {
+            keyPrefix: "srv:booking:",
+        });
 
         redisInstance.on('connect', () => {
             logger.info('✅ Redis connected');

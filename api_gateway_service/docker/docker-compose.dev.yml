@@ -1,4 +1,4 @@
-version: "3.9"
+name: api-gateway
 
 services:
   postgres:
@@ -7,17 +7,17 @@ services:
 
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: apigatewaypassword
-      POSTGRES_DB: api_gateway_db
+      POSTGRES_PASSWORD: gatewaypassword
+      POSTGRES_DB: gateway_db
 
     ports:
       - "5435:5432"
 
     volumes:
-      - api_gateway_postgres_data:/var/lib/postgresql/data
+      - gateway_postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d api_gateway_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gateway_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -25,4 +25,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  api_gateway_postgres_data:
+  gateway_postgres_data:

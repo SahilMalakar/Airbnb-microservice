@@ -1,0 +1,38 @@
+version: "3.9"
+
+# Single Redis instance shared by every service for local dev — mirrors the
+# single ElastiCache node used in the AWS demo deployment. Every service's
+# REDIS_URL should point here. Namespacing happens in application code
+# (ioredis keyPrefix for Booking/Hotel, BullMQ `prefix` for Notification),
+# not at the infra layer — that's the whole point of consolidating.
+#
+# Replaces: booking_service's own redis container (not shown in the repo
+# tree provided, but presumed to exist analogous to notification's), and
+# notification_service/docker-compose.dev.yml's dedicated "notification-redis"
+# container. Delete both of those once this is running.
+
+name: shared-infra
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: shared-redis
+
+    command: redis-server --requirepass devpassword
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - redis_data:/data
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "devpassword", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+    restart: unless-stopped
+
+volumes:
+  redis_data:

@@ -11,7 +11,7 @@ model Hotel {
   id          Int    @id @default(autoincrement())
   name        String
   description String
-  hostId      Int // reference to Auth service's User.id — not a real FK
+  hostId      Int // reference to Auth service's User.id/host.id — not a real FK
   address     String
   pincode     String
 
@@ -86,6 +86,7 @@ model Room {
 
   roomCategoryId Int
   roomCategory   RoomCategory @relation(fields: [roomCategoryId], references: [id])
+  maxOccupancy   Int @default(1)
 
   // no bookingId, no date_of_availability — booking history lives in Booking service
 
@@ -95,6 +96,7 @@ model Room {
 
   @@index([hotelId])
   @@index([roomCategoryId])
+  @@unique([hotelId, roomNo])
 }
 
 // Written by an async consumer reacting to ReviewCreated events

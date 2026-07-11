@@ -13,17 +13,37 @@ datasource db {
 }
 
 model Booking {
-  id               Int              @id @default(autoincrement())
-  userId           Int
-  hotelId          Int
-  totalGuest       Int
-  bookingAmount    Int
-  status           BookingStatus    @default(PENDING)
-  holdExpiresAt    DateTime // when this PENDING hold, dies if not confirmed
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id            Int           @id @default(autoincrement())
+
+  roomId        Int // reference to Hotel service's Room.id — not a real FK
+  userId        Int // reference to Auth service's User.id — not a real FK
+  hotelId       Int // Denormalized from RoomRef.hotelId at creation time. 
+  totalGuests   Int
+  bookingAmount Int
+  status        BookingStatus @default(PENDING)
+
+  checkInDate   DateTime      @db.Date
+  checkOutDate  DateTime      @db.Date
+
+  holdExpiresAt DateTime // when this PENDING hold dies if not confirmed
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   idempotencyKeyId Int?             @unique
   idempotencyKeys  IdempotencyKey[]
+
+  @@index([roomId])
+  @@index([userId])
+  @@index([hotelId])
+  @@index([roomId, checkInDate, checkOutDate])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
 }
 
 model IdempotencyKey {
@@ -36,9 +56,36 @@ model IdempotencyKey {
   bookingId Int?
 }
 
-enum BookingStatus {
-  PENDING
-  CONFIRMED
-  CANCELLED
-  EXPIRED
+// The atomicity target: hold/confirm/release all mutate this row
+// within the same DB transaction as the Booking write.
+model RoomAvailability {
+  id     Int      @id @default(autoincrement())
+
+  roomId Int // reference to Hotel service's Room.id — not a real FK
+  date   DateTime @db.Date // just the date, no time component
+
+  totalCount  Int @default(1) // usually 1 per physical room
+  bookedCount Int @default(0)
+  heldCount   Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roomId, date]) // one row per room per day — this IS the lock target
+  @@index([roomId, date])
+}
+
+// Local read-model of active rooms, kept in sync via RoomCreated /
+// RoomUpdated / RoomDeleted events consumed from Hotel service.
+// Exists ONLY so the daily cron knows which roomIds to extend
+// RoomAvailability for — Booking service does not own room data.
+model RoomRef {
+  roomId    Int       @id // same value as Hotel service's Room.id
+  hotelId   Int // denormalized, useful for queries/reporting
+  isActive  Boolean   @default(true) // false once RoomDeleted event received
+  price     Int // denormalized snapshot, may drift — not source of truth
+  syncedAt  DateTime  @updatedAt
+
+  @@index([hotelId])
+  @@index([isActive])
 }

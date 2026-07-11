@@ -1,4 +1,4 @@
-version: "3.9"
+name: hotel
 
 services:
   postgres:
@@ -24,26 +24,5 @@ services:
 
     restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    container_name: hotel-redis
-
-    command: redis-server --requirepass hotelpassword
-
-    ports:
-      - "6380:6379"
-
-    volumes:
-      - hotel_redis_data:/data
-
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "hotelpassword", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-    restart: unless-stopped
-
 volumes:
   hotel_postgres_data:
-  hotel_redis_data:

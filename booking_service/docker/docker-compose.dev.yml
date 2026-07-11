@@ -1,47 +1,28 @@
+name: booking
+
 services:
-    postgres:
-        image: postgres:17-alpine
-        container_name: booking-postgres
+  postgres:
+    image: postgres:17-alpine
+    container_name: booking-postgres
 
-        environment:
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: bookingpassword
-            POSTGRES_DB: booking_service_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: bookingpassword
+      POSTGRES_DB: booking_service_db
 
-        ports:
-            - '5434:5432'
+    ports:
+      - "5434:5432"
 
-        volumes:
-            - booking_postgres_data:/var/lib/postgresql/data
+    volumes:
+      - booking_postgres_data:/var/lib/postgresql/data
 
-        healthcheck:
-            test: ['CMD-SHELL', 'pg_isready -U postgres -d booking_service_db']
-            interval: 5s
-            timeout: 5s
-            retries: 5
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d booking_service_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-        restart: unless-stopped
-
-    redis:
-        image: redis:7-alpine
-        container_name: booking-redis
-
-        command: redis-server --requirepass bookingpassword
-
-        ports:
-            - '6381:6379'
-
-        volumes:
-            - booking_redis_data:/data
-
-        healthcheck:
-            test: ['CMD', 'redis-cli', '-a', 'bookingpassword', 'ping']
-            interval: 5s
-            timeout: 5s
-            retries: 5
-
-        restart: unless-stopped
+    restart: unless-stopped
 
 volumes:
-    booking_postgres_data:
-    booking_redis_data:
+  booking_postgres_data:
