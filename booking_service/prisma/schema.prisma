@@ -30,7 +30,6 @@ model Booking {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  idempotencyKeyId Int?             @unique
   idempotencyKeys  IdempotencyKey[]
 
   @@index([roomId])
