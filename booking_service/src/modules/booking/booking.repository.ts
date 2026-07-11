@@ -24,6 +24,14 @@ export async function createBookingRepo(
     return booking;
 }
 
+export async function getRoomRefById(
+    roomId: number,
+    tx: Prisma.TransactionClient
+) {
+    return await tx.roomRef.findUnique({ where: { roomId } });
+}
+
+
 export async function getBookingById(bookingId: number) {
     const booking = await prisma.booking.findUnique({
         where: { id: bookingId },
@@ -51,12 +59,12 @@ export async function getIdempotencyKeyWithLock(
 }
 
 export async function findActiveHold(
-    hotelId: number,
+    roomId: number,
     tx: Prisma.TransactionClient
 ) {
     return await tx.booking.findFirst({
         where: {
-            hotelId,
+            roomId,
             OR: [
                 { status: 'CONFIRMED' },
                 {

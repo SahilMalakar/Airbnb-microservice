@@ -12,14 +12,16 @@ import {
     finalizeIdempotencyKey,
     findActiveHold,
     getIdempotencyKeyWithLock,
+    getRoomRefById,
 } from './booking.repository.js';
 
 // applying prisma transaction with idempotency key to prevent a user from double booking
 // applying distributed redis lock (redLock) to prevent Concurent Booking by mutiple users
 
-export async function createBookingService(data: CreateBookingDto) {
+export async function createBookingService(
+    data: CreateBookingDto) {
     const key = generateIdempotencyKey();
-    const bookingResourceKey = CACHE_KEY.booking(data.hotelId);
+    const bookingResourceKey = CACHE_KEY.booking(data.roomId);
 
     let lock;
     try {
@@ -32,22 +34,41 @@ export async function createBookingService(data: CreateBookingDto) {
     try {
         const { booking, idempotencyKey } = await prisma.$transaction(
             async (tx) => {
-                const existingHold = await findActiveHold(data.hotelId, tx);
 
-                if (existingHold) {
+                // get room id 
+                const roomRef = await getRoomRefById(data.roomId, tx);
+
+                if (!roomRef || !roomRef.isActive) {
                     throw new BadRequestError(
-                        'This hotel is currently held or booked by another user'
+                        'Room not found or no longer available'
                     );
                 }
 
-                const booking = await createBookingRepo(data, tx);
-
+                // check if room has an existing hold or booked by another user
+                const existingHold = await findActiveHold(data.roomId, tx);
+                if (existingHold) {
+                    throw new BadRequestError(
+                        'This room is currently held or booked by another user'
+                    );
+                }
+                
+                // create booking
+                const booking = await createBookingRepo(
+                    { ...data, hotelId: roomRef.hotelId },
+                    tx
+                );
+                
+                // create idempotency key
                 const idempotencyKey = await createIdempotencyKey(
                     key,
                     booking.id,
                     tx
                 );
-                return { booking, idempotencyKey };
+
+                return {
+                    booking,
+                    idempotencyKey,
+                };
             }
         );
 

@@ -7,8 +7,8 @@ export type BookingStatus = z.infer<typeof BookingStatus>;
 export const createBookingSchema = z
     .object({
         userId: z.number().int().positive(),
-        hotelId: z.number().int().positive(),
-        totalGuest: z
+        roomId: z.number().int().positive(),
+        totalGuests: z
             .number()
             .int()
             .positive()
@@ -19,5 +19,11 @@ export const createBookingSchema = z
             .int()
             .positive()
             .min(1, 'Booking amount cannot be less than 1'),
+        checkInDate: z.coerce.date(),
+        checkOutDate: z.coerce.date(),
     })
-    .strict();
+    .strict()
+    .refine((data) => data.checkOutDate > data.checkInDate, {
+        message: 'checkOutDate must be after checkInDate',
+        path: ['checkOutDate'],
+    });
