@@ -43,3 +43,23 @@ export const redlock = new Redlock([getRedisClient()], {
     // attempted with the `using` API.
     automaticExtensionThreshold: 500,
 });
+
+let bullmqRedisInstance: Redis | null = null;
+
+export function getBullMQRedisClient(): Redis {
+    if (!bullmqRedisInstance) {
+        bullmqRedisInstance = new Redis(RedisConfig.REDIS_URL, {
+            maxRetriesPerRequest: null,
+        });
+
+        bullmqRedisInstance.on('connect', () => {
+            logger.info('✅ BullMQ Redis connected');
+        });
+
+        bullmqRedisInstance.on('error', (err) => {
+            logger.error('❌ BullMQ Redis error:', err);
+        });
+    }
+
+    return bullmqRedisInstance;
+}

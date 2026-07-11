@@ -1,11 +1,13 @@
 import { asyncHandler } from '../../shared/utils/asynHandler.js';
 import type { Request, RequestHandler, Response } from 'express';
 import {
+    cancelBookingService,
     confirmBookingService,
     createBookingService,
 } from './booking.service.js';
 import { sendSuccess } from '../../shared/utils/apiResponse.js';
 import { NotFoundError } from '../../shared/errors/app.error.js';
+import { idSchema } from '../../shared/utils/id.convert.js';
 
 export const createBookingController: RequestHandler = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
@@ -26,5 +28,13 @@ export const confirmBookingController: RequestHandler = asyncHandler(
         const booking = await confirmBookingService(key as string);
 
         sendSuccess(res, booking, 'Booking confirmed successfully', 200);
+    }
+);
+
+export const cancelBookingController: RequestHandler = asyncHandler(
+    async (req: Request, res: Response): Promise<void> => {
+        const parsed = idSchema.parse(req.params);
+        const booking = await cancelBookingService(parsed.id);
+        sendSuccess(res, booking, 'Booking cancelled successfully', 200);
     }
 );

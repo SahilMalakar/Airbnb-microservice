@@ -1,11 +1,14 @@
+import { BookingStatus } from '../../infra/database/generated/enums.js';
 import { prisma } from '../../infra/database/prisma.js';
 import { logger } from '../../infra/logger/index.js';
+import { bookingExpiryQueue } from '../../infra/queue/queue.client.js';
 import { redlock } from '../../infra/redis/redis.js';
 import { BadRequestError } from '../../shared/errors/app.error.js';
-import { CACHE_KEY, TTL } from '../../shared/utils/constant.js';
+import { CACHE_KEY, HOLD_DURATION_MS, TTL } from '../../shared/utils/constant.js';
 import { generateIdempotencyKey } from '../../shared/utils/generateIdempotency.js';
 import type { CreateBookingDto } from './booking.dto.js';
 import {
+    cancelBookingWithLock,
     confirmBookingWithLock,
     createBookingRepo,
     createIdempotencyKey,
@@ -14,6 +17,8 @@ import {
     getIdempotencyKeyWithLock,
     getRoomRefById,
     lockAndHoldRoomAvailability,
+    releaseBookedRoomAvailability,
+    releaseHeldRoomAvailability,
 } from './booking.repository.js';
 
 // applying prisma transaction with idempotency key to prevent a user from double booking
@@ -89,6 +94,11 @@ export async function createBookingService(data: CreateBookingDto) {
                 return { booking, idempotencyKey };
             }
         );
+        await bookingExpiryQueue.add(
+            'expire-hold',
+            { bookingId: booking.id, correlationId: key },
+            { delay: HOLD_DURATION_MS }
+        );
 
         logger.info('Idempotency Key created', key);
 
@@ -131,4 +141,42 @@ export async function confirmBookingService(key: string) {
 
         return booking;
     });
+}
+
+export async function cancelBookingService(bookingId: number) {
+    return await prisma.$transaction(async (tx) => {
+        const result = await cancelBookingWithLock(bookingId, tx);
+
+        if (!result || !result.booking) {
+            logger.warn("Booking cannot be cancelled (already cancelled or expired).", bookingId);
+            throw new BadRequestError("Booking cannot be cancelled (already cancelled or expired).")
+        }
+
+        const {
+            booking,
+            previousStatus
+        } = result;
+
+        if (previousStatus === BookingStatus.PENDING) {
+            await releaseHeldRoomAvailability(
+                booking.roomId,
+                booking.checkInDate,
+                booking.checkOutDate,
+                tx
+            );
+            logger.info("Booking cancelled and held count released", booking.id);
+        } else {
+            await releaseBookedRoomAvailability(
+                booking.roomId,
+                booking.checkInDate,
+                booking.checkOutDate,
+                tx
+            );
+            logger.info("Booking cancelled and booking count released", booking.id);
+        }
+
+        logger.info("Booking cancelled successfully", booking.id);
+        return booking;
+    });
+
 }

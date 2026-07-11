@@ -143,13 +143,7 @@ export async function promoteHoldToBooked(
     `;
 }
 
-// STEP 4 — giving the seat back (for cancel / expiry, not wired up yet)
-
-// If a booking is cancelled, or a hold times out without being
-// confirmed, we need to erase the mark and give the seat back so
-// someone else can book that day. This function is ready to use,
-// but nothing calls it yet — cancellation and the expiry-cleanup
-// job are still separate, not-yet-done tasks on the backlog.
+// STEP 4 — giving the seat back (for cancel / expiry)
 export async function releaseHeldRoomAvailability(
     roomId: number,
     checkInDate: Date,
@@ -248,10 +242,72 @@ export async function finalizeIdempotencyKey(
     });
 }
 
-export async function cancelBooking(bookingId: number) {
-    const booking = await prisma.booking.update({
+
+// Atomically flips PENDING -> EXPIRED, but only if still expired at the
+// moment of the write — guards against a race with confirmBookingWithLock
+// (e.g. the delayed job firing right as the user confirms).
+export async function expireBookingWithLock(
+    bookingId: number,
+    tx: Prisma.TransactionClient
+) {
+    const result = await tx.booking.updateMany({
+        where: {
+            id: bookingId,
+            status: 'PENDING',
+            holdExpiresAt: { lte: new Date() },
+        },
+        data: { status: 'EXPIRED' },
+    });
+
+    if (result.count === 0) {
+        // Already confirmed/cancelled/expired — nothing to do.
+        return null;
+    }
+
+    return await tx.booking.findUnique({ where: { id: bookingId } });
+}
+
+// Locks the row, checks it's still cancellable, flips to CANCELLED, and
+// returns both the booking and its prior status — the caller needs
+// prior status to know whether to release heldCount or bookedCount.
+export async function cancelBookingWithLock(
+    bookingId: number,
+    tx: Prisma.TransactionClient
+): Promise<{ booking: Awaited<ReturnType<typeof getBookingById>>; previousStatus: string } | null> {
+    const rows: Array<{ id: number; status: string; roomId: number; checkInDate: Date; checkOutDate: Date }> =
+        await tx.$queryRaw`SELECT * FROM "Booking" WHERE id = ${bookingId} FOR UPDATE`;
+
+    if (rows.length === 0) {
+        throw new NotFoundError('booking not found');
+    }
+
+    const previousStatus = rows[0]!.status;
+
+    if (previousStatus !== 'PENDING' && previousStatus !== 'CONFIRMED') {
+        // already CANCELLED or EXPIRED — nothing to do
+        return null;
+    }
+
+    await tx.booking.update({
         where: { id: bookingId },
         data: { status: 'CANCELLED' },
     });
-    return booking;
+
+    const booking = await tx.booking.findUnique({ where: { id: bookingId } });
+    return { booking, previousStatus };
+}
+
+// Mirror of releaseHeldRoomAvailability, but for CONFIRMED bookings —
+// gives back a booked day instead of a held one.
+export async function releaseBookedRoomAvailability(
+    roomId: number,
+    checkInDate: Date,
+    checkOutDate: Date,
+    tx: Prisma.TransactionClient
+): Promise<void> {
+    await tx.$executeRaw`
+        UPDATE "RoomAvailability"
+        SET "bookedCount" = GREATEST("bookedCount" - 1, 0), "updatedAt" = now()
+        WHERE "roomId" = ${roomId} AND "date" >= ${checkInDate}::date AND "date" < ${checkOutDate}::date
+    `;
 }

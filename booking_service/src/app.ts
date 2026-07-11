@@ -1,6 +1,8 @@
 import { ServerConfig } from './config/index.js';
 import { connectDB, disconnectDB } from './infra/database/prisma.js';
 import { logger } from './infra/logger/index.js';
+import { bookingExpiryQueue } from './infra/queue/queue.client.js';
+import { bookingExpiryWorker } from './infra/queue/worker.client.js';
 import { bookingRouter } from './modules/booking/booking.route.js';
 import { heathcheckRouter } from './modules/health/ping.route.js';
 import { app } from './server.js';
@@ -24,6 +26,9 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
     server.close(async () => {
         try {
             logger.info('HTTP Server closed');
+
+            await bookingExpiryWorker.close();
+            await bookingExpiryQueue.close();
 
             await disconnectDB();
 
