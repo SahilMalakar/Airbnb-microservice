@@ -13,29 +13,36 @@ import {
     findActiveHold,
     getIdempotencyKeyWithLock,
     getRoomRefById,
+    lockAndHoldRoomAvailability,
 } from './booking.repository.js';
 
 // applying prisma transaction with idempotency key to prevent a user from double booking
 // applying distributed redis lock (redLock) to prevent Concurent Booking by mutiple users
 
-export async function createBookingService(
-    data: CreateBookingDto) {
+export async function createBookingService(data: CreateBookingDto) {
     const key = generateIdempotencyKey();
+
+    // The Redis lock is scoped to the room, not the whole hotel.
+    // Think of this like a "please wait, someone's using this door
+    // handle" sign — it just reduces two people bumping into each
+    // other at the same instant. It is a CONVENIENCE, not the real
+    // safety net. The real safety net is lockAndHoldRoomAvailability()
+    // in the repository, which the database itself enforces.
     const bookingResourceKey = CACHE_KEY.booking(data.roomId);
 
     let lock;
     try {
-        // does return null or undefined on failure it throws the error , so if(!lock) will be by passed
         lock = await redlock.acquire([bookingResourceKey], TTL);
     } catch (err) {
-        throw new BadRequestError('Booking already exists');
+        throw new BadRequestError('This room is currently being booked, please retry');
     }
 
     try {
         const { booking, idempotencyKey } = await prisma.$transaction(
             async (tx) => {
-
-                // get room id 
+                // Make sure the room is real and still active before
+                // doing anything else — no point locking dates for a
+                // room that doesn't exist.
                 const roomRef = await getRoomRefById(data.roomId, tx);
 
                 if (!roomRef || !roomRef.isActive) {
@@ -44,47 +51,51 @@ export async function createBookingService(
                     );
                 }
 
-                // check if room has an existing hold or booked by another user
-                const existingHold = await findActiveHold(data.roomId, tx);
+                // Quick peek at the calendar first (cheap, fails fast).
+                const existingHold = await findActiveHold(
+                    data.roomId,
+                    data.checkInDate,
+                    data.checkOutDate,
+                    tx
+                );
                 if (existingHold) {
                     throw new BadRequestError(
-                        'This room is currently held or booked by another user'
+                        'This room is currently held or booked for the selected dates'
                     );
                 }
-                
-                // create booking
+
+                // ⭐ The actual safety check — grabs a seat for every
+                // day of the stay, or cancels the whole thing if any
+                // day is already full. This is what really stops two
+                // people from booking the same room on the same day.
+                await lockAndHoldRoomAvailability(
+                    data.roomId,
+                    data.checkInDate,
+                    data.checkOutDate,
+                    tx
+                );
+
                 const booking = await createBookingRepo(
                     { ...data, hotelId: roomRef.hotelId },
                     tx
                 );
-                
-                // create idempotency key
+
                 const idempotencyKey = await createIdempotencyKey(
                     key,
                     booking.id,
                     tx
                 );
 
-                return {
-                    booking,
-                    idempotencyKey,
-                };
+                return { booking, idempotencyKey };
             }
         );
-
-        // Schedule auto-expiry — fires exactly when the hold should die
-        // await bookingExpiryQueue.add(
-        //     "expire-hold",
-        //     { bookingId: booking.id },
-        //     { delay: HOLD_DURATION_MS }
-        // );
 
         logger.info('Idempotency Key created', key);
 
         return {
             booking,
             idempotencyKey: idempotencyKey.key,
-            holdExpiresAt: booking.holdExpiresAt, // return to client so UI can show countdown
+            holdExpiresAt: booking.holdExpiresAt,
         };
     } finally {
         if (lock) {

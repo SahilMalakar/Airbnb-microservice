@@ -2,14 +2,25 @@ package utils
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/config"
 )
 
-var jwtSecretKey = []byte(config.GetEnvString("ACCESS_KEY_TOKEN", ""))
-var refreshSecretKey = []byte(config.GetEnvString("REFRESH_TOKEN_SECRET", ""))
+var (
+	jwtSecretKey     []byte
+	refreshSecretKey []byte
+	secretsOnce      sync.Once
+)
+
+func MustLoadSecrets() {
+	secretsOnce.Do(func() {
+		jwtSecretKey = []byte(config.RequireEnvString("ACCESS_KEY_TOKEN"))
+		refreshSecretKey = []byte(config.RequireEnvString("REFRESH_KEY_TOKEN"))
+	})
+}
 
 func CreateAccessToken(id int64, email string, roles []string, permissions []string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

@@ -10,6 +10,7 @@ import (
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/handler"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/router"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/service"
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/utils"
 )
 
 // Config holds runtime configuration for the application.
@@ -43,6 +44,7 @@ func NewApplication(cfg *Config) *Application {
 // RunServer sets up the database, wires all dependencies, and starts the
 // HTTP server.
 func (a *Application) RunServer() error {
+	utils.MustLoadSecrets()
 
 	conn, err := config.LoadDb()
 	if err != nil {

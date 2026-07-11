@@ -11,9 +11,7 @@ import (
 // The caller owns the returned *sql.DB and is responsible for closing it
 // when the application shuts down.
 func LoadDb() (*sql.DB, error) {
-	dsn := GetEnvString("DATABASE_URL", "")
-
-	fmt.Println("data from env ", dsn)
+	dsn := RequireEnvString("DATABASE_URL")
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {

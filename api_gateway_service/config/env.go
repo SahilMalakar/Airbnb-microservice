@@ -60,3 +60,11 @@ func GetEnvInt(key string, fallBack int) int {
 func GetEnvBool(key string, fallBack bool) bool {
 	return getEnv(key, fallBack, strconv.ParseBool)
 }
+
+func RequireEnvString(key string) string {
+	val, exists := os.LookupEnv(key)
+	if !exists || val == "" {
+		log.Fatalf("missing required env variable: %s", key)
+	}
+	return val
+}
