@@ -48,10 +48,6 @@ func SetUpRouter(
 	// --- Versioned API ---
 	router.Route("/api/v1", func(r chi.Router) {
 
-		fakeAPIProxy := utils.ProxyToService("https://fakeapi.net", "/api/v1/fakeapi")
-		r.Get("/fakeapi", fakeAPIProxy)
-		r.Get("/fakeapi/*", fakeAPIProxy)
-
 		// Auth + RBAC management routes (signup, login, roles, permissions...)
 		UserRouter.Register(r)
 		RoleRouter.Register(r)
