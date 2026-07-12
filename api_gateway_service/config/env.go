@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 
 	"os"
@@ -67,4 +68,18 @@ func RequireEnvString(key string) string {
 		log.Fatalf("missing required env variable: %s", key)
 	}
 	return val
+}
+
+// GetEnvStringList returns a comma-separated env var split into a slice,
+// or fallback if unset. Whitespace around each entry is trimmed.
+func GetEnvStringList(key string, fallback []string) []string {
+	val, exists := os.LookupEnv(key)
+	if !exists || val == "" {
+		return fallback
+	}
+	parts := strings.Split(val, ",")
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+	return parts
 }

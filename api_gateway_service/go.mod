@@ -11,6 +11,7 @@ require (
 require golang.org/x/crypto v0.53.0
 
 require (
+	github.com/go-chi/cors v1.2.2
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	golang.org/x/time v0.15.0
