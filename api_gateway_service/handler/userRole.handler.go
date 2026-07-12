@@ -23,63 +23,63 @@ func NewUserRoleController(userRoleService service.UserRoleService) *UserRoleCon
 func (c *UserRoleController) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	userId, err := strconv.ParseInt(chi.URLParam(r, "userId"), 10, 64)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid user id"})
+		utils.SendError(w, http.StatusBadRequest, "Error role id", "invalid role id")
 		return
 	}
 
 	roles, err := c.UserRoleService.GetUserRolesService(userId)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		utils.SendError(w, http.StatusInternalServerError, "Error on role fetching", err.Error())
 		return
 	}
-	utils.WriteJSONResponse(w, http.StatusOK, map[string]any{"data": roles})
+	utils.SendSuccess(w, http.StatusOK, "user roles fetched", roles)
 }
 
 func (c *UserRoleController) AssignRole(w http.ResponseWriter, r *http.Request, req dto.AssignRoleRequestDTO) {
 	userId, err := strconv.ParseInt(chi.URLParam(r, "userId"), 10, 64)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid user id"})
+		utils.SendError(w, http.StatusBadRequest, "Error role id", "invalid role id")
 		return
 	}
 
 	if err := c.UserRoleService.AssignRoleService(userId, &req); err != nil {
-		utils.WriteJSONResponse(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		utils.SendError(w, http.StatusConflict, "Error on role adding", err.Error())
 		return
 	}
-	utils.WriteJSONResponse(w, http.StatusCreated, map[string]string{"message": "role assigned"})
+	utils.SendSuccess(w, http.StatusCreated, "role assigned", nil)
 }
 
 func (c *UserRoleController) RemoveRole(w http.ResponseWriter, r *http.Request) {
 	userId, err := strconv.ParseInt(chi.URLParam(r, "userId"), 10, 64)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid user id"})
+		utils.SendError(w, http.StatusBadRequest, "Error user id", "invalid user id")
 		return
 	}
 
 	roleId, err := strconv.ParseInt(chi.URLParam(r, "roleId"), 10, 64)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid role id"})
+		utils.SendError(w, http.StatusBadRequest, "Error role id", "invalid role id")
 		return
 	}
 
 	if err := c.UserRoleService.RemoveRoleService(userId, roleId); err != nil {
-		utils.WriteJSONResponse(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		utils.SendError(w, http.StatusNotFound, "Error role not found", err.Error())
 		return
 	}
-	utils.WriteJSONResponse(w, http.StatusOK, map[string]string{"message": "role removed"})
+	utils.SendSuccess(w, http.StatusOK, "role removed", nil)
 }
 
 func (c *UserRoleController) GetUserPermissions(w http.ResponseWriter, r *http.Request) {
 	userId, err := strconv.ParseInt(chi.URLParam(r, "userId"), 10, 64)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid user id"})
+		utils.SendError(w, http.StatusBadRequest, "Error user id", "invalid user id")
 		return
 	}
 
 	permissions, err := c.UserRoleService.GetUserPermissionsService(userId)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		utils.SendError(w, http.StatusInternalServerError, "Error on permission fetching", err.Error())
 		return
 	}
-	utils.WriteJSONResponse(w, http.StatusOK, map[string]any{"data": permissions})
+	utils.SendSuccess(w, http.StatusOK, "permissions fetched", permissions)
 }

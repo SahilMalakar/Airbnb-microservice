@@ -24,62 +24,62 @@ func NewRoleController(roleService service.RoleService) *RoleController {
 func (c *RoleController) CreateRole(w http.ResponseWriter, r *http.Request, req dto.CreateRoleRequestDTO) {
 	role, err := c.RoleService.CreateRoleService(&req)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		utils.SendError(w, http.StatusConflict, "Error role create", err.Error())
 		return
 	}
-	utils.WriteJSONResponse(w, http.StatusCreated, map[string]any{"message": "role created", "data": role})
+	utils.SendSuccess(w, http.StatusCreated, "role created", role)
 }
 
 // UpdateRole is a ValidatedHandler[dto.UpdateRoleRequestDTO].
 func (c *RoleController) UpdateRole(w http.ResponseWriter, r *http.Request, req dto.UpdateRoleRequestDTO) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid role id"})
+		utils.SendError(w, http.StatusBadRequest, "Error role id", "invalid role id")
 		return
 	}
 
 	role, err := c.RoleService.UpdateRoleService(id, &req)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		utils.SendError(w, http.StatusBadRequest, "Error role updated", err.Error())
 		return
 	}
-	utils.WriteJSONResponse(w, http.StatusOK, map[string]any{"message": "role updated", "data": role})
+	utils.SendSuccess(w, http.StatusOK, "role updated", role)
 }
 
 func (c *RoleController) GetRoleByID(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid role id"})
+		utils.SendError(w, http.StatusBadRequest, "Error role id", "invalid role id")
 		return
 	}
 
 	role, err := c.RoleService.GetRoleByIDService(id)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		utils.SendError(w, http.StatusNotFound, "Error role not found", err.Error())
 		return
 	}
-	utils.WriteJSONResponse(w, http.StatusOK, map[string]any{"data": role})
+	utils.SendSuccess(w, http.StatusOK, "role found", role)
 }
 
 func (c *RoleController) GetAllRoles(w http.ResponseWriter, r *http.Request) {
 	roles, err := c.RoleService.GetAllRolesService()
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		utils.SendError(w, http.StatusInternalServerError, "Error role fetching", err.Error())
 		return
 	}
-	utils.WriteJSONResponse(w, http.StatusOK, map[string]any{"message": "roles fetched successfully", "data": roles})
+	utils.SendSuccess(w, http.StatusOK, "role fetched", roles)
 }
 
 func (c *RoleController) DeleteRole(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid role id"})
+		utils.SendError(w, http.StatusBadRequest, "Error role id", "invalid role id")
 		return
 	}
 
 	if err := c.RoleService.DeleteRoleService(id); err != nil {
-		utils.WriteJSONResponse(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		utils.SendError(w, http.StatusNotFound, "Error role not found", err.Error())
 		return
 	}
-	utils.WriteJSONResponse(w, http.StatusOK, map[string]string{"message": "role deleted"})
+	utils.SendSuccess(w, http.StatusOK, "role deleted", nil)
 }

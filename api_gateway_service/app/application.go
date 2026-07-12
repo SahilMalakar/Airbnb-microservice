@@ -52,6 +52,7 @@ func (a *Application) RunServer() error {
 		return err
 	}
 
+	fmt.Println("Database connected successfully")
 	defer conn.Close()
 
 	// Wire dependencies: DB → Repository → Service → Controller → Router

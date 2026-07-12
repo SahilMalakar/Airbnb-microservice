@@ -18,7 +18,7 @@ var (
 func MustLoadSecrets() {
 	secretsOnce.Do(func() {
 		jwtSecretKey = []byte(config.RequireEnvString("ACCESS_KEY_TOKEN"))
-		refreshSecretKey = []byte(config.RequireEnvString("REFRESH_KEY_TOKEN"))
+		refreshSecretKey = []byte(config.RequireEnvString("REFRESH_TOKEN_SECRET"))
 	})
 }
 

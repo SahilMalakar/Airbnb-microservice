@@ -34,24 +34,24 @@ func AuthCookie(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("access_token")
 		if err != nil {
-			utils.WriteJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": "no token found"})
+			utils.SendError(w, http.StatusUnauthorized, "Error on token verification", "no token found")
 			return
 		}
 
 		claims, err := utils.VerifyAccessToken(cookie.Value)
 		if err != nil {
-			utils.WriteJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized access"})
+			utils.SendError(w, http.StatusUnauthorized, "Error on token verification", "unauthorized access")
 			return
 		}
 
 		idFloat, ok := claims["id"].(float64)
 		if !ok {
-			utils.WriteJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": "invalid token claims"})
+			utils.SendError(w, http.StatusUnauthorized, "Error on token verification", "invalid token claims")
 			return
 		}
 		email, ok := claims["email"].(string)
 		if !ok {
-			utils.WriteJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": "invalid token claims"})
+			utils.SendError(w, http.StatusUnauthorized, "Error on token verification", "invalid token claims")
 			return
 		}
 

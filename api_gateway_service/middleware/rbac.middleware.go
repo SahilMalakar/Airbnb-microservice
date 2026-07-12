@@ -13,7 +13,7 @@ func RequirePermission(permissionName string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			permissions, _ := r.Context().Value(CtxUserPerms).([]string)
 			if !contains(permissions, permissionName) {
-				utils.WriteJSONResponse(w, http.StatusForbidden, map[string]string{"error": "insufficient permissions"})
+				utils.SendError(w, http.StatusForbidden, "Error on role permission fetching", "insufficient permissions")
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -28,12 +28,12 @@ func RequireAnyPermission(permissionNames ...string) func(http.Handler) http.Han
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			permissions, _ := r.Context().Value(CtxUserPerms).([]string)
 			for _, name := range permissionNames {
-				if contains(permissions, name) {
-					next.ServeHTTP(w, r)
+				if !contains(permissions, name) {
+					utils.SendError(w, http.StatusForbidden, "Error on role permission fetching", "insufficient permissions")
 					return
 				}
 			}
-			utils.WriteJSONResponse(w, http.StatusForbidden, map[string]string{"error": "insufficient permissions"})
+			next.ServeHTTP(w, r)
 		})
 	}
 }
@@ -46,7 +46,7 @@ func RequireAllPermissions(permissionNames ...string) func(http.Handler) http.Ha
 			permissions, _ := r.Context().Value(CtxUserPerms).([]string)
 			for _, name := range permissionNames {
 				if !contains(permissions, name) {
-					utils.WriteJSONResponse(w, http.StatusForbidden, map[string]string{"error": "insufficient permissions"})
+					utils.SendError(w, http.StatusForbidden, "Error on role permission fetching", "insufficient permissions")
 					return
 				}
 			}
@@ -62,7 +62,7 @@ func RequireRole(roleName string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			roles, _ := r.Context().Value(CtxUserRoles).([]string)
 			if !contains(roles, roleName) {
-				utils.WriteJSONResponse(w, http.StatusForbidden, map[string]string{"error": "insufficient role"})
+				utils.SendError(w, http.StatusForbidden, "Error on role permission fetching", "insufficient role")
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -82,7 +82,7 @@ func RequireAnyRole(roleNames ...string) func(http.Handler) http.Handler {
 					return
 				}
 			}
-			utils.WriteJSONResponse(w, http.StatusForbidden, map[string]string{"error": "insufficient role"})
+			utils.SendError(w, http.StatusForbidden, "Error on role permission fetching", "insufficient role")
 		})
 	}
 }
@@ -95,7 +95,7 @@ func RequireAllRoles(roleNames ...string) func(http.Handler) http.Handler {
 			roles, _ := r.Context().Value(CtxUserRoles).([]string)
 			for _, name := range roleNames {
 				if !contains(roles, name) {
-					utils.WriteJSONResponse(w, http.StatusForbidden, map[string]string{"error": "insufficient role"})
+					utils.SendError(w, http.StatusForbidden, "Error on role permission fetching", "insufficient role")
 					return
 				}
 			}

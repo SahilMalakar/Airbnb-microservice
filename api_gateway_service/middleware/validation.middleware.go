@@ -15,12 +15,12 @@ func DecodeAndValidate[T any](h ValidatedHandler[T]) http.HandlerFunc {
 		var payload T
 
 		if err := utils.ReadJSONRequest(w, r, &payload); err != nil {
-			utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+			utils.SendError(w, http.StatusBadRequest, "Error on validation", "invalid request body")
 			return
 		}
 
 		if err := utils.ValidateStruct(payload); err != nil {
-			utils.WriteJSONResponse(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			utils.SendError(w, http.StatusBadRequest, "Error on validation", err.Error())
 			return
 		}
 
