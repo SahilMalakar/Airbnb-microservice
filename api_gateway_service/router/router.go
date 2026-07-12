@@ -17,8 +17,6 @@ type Router interface {
 	Register(r chi.Router)
 }
 
-// SetUpRouter builds and returns the chi router with all application
-// routes registered.
 func SetUpRouter(
 	UserRouter Router,
 	RoleRouter Router,
@@ -29,72 +27,79 @@ func SetUpRouter(
 
 	router := chi.NewRouter()
 
-	// CORS: explicit allow-list, read from env so it can differ per
-	// environment (local dev vs deployed) without a code change.
+	// --- Global middleware (applies to every request) ---
 	allowedOrigins := config.GetEnvStringList("CORS_ALLOWED_ORIGINS", []string{"http://localhost:3000"})
-
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Content-Type", "X-Correlation-Id"},
-		AllowCredentials: true, // required since auth relies on HttpOnly cookies
+		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-
-	// Middleware: log every request (method, path, status, duration)
 	router.Use(chimiddleware.Logger)
-	// Middleware: recover from panics and log the stack trace
 	router.Use(chimiddleware.Recoverer)
-	// Middleware: rate limiting
+
 	limiter := rate.NewLimiter(rate.Every(1*time.Minute), 20)
 	router.Use(middleware.RateLimiter(limiter))
 
-	// routes
+	// --- Unversioned ---
 	router.Get("/health", handler.HealthHandler)
 
-	// proxy the request
-	fakeAPIProxy := utils.ProxyToService("https://fakeapi.net", "/fakeapi")
-	router.Get("/fakeapi", fakeAPIProxy)
-	router.Get("/fakeapi/*", fakeAPIProxy)
-
-	UserRouter.Register(router)
-	RoleRouter.Register(router)
-	PermissionRouter.Register(router)
-	RolePermissionRouter.Register(router)
-	UserRoleRouter.Register(router)
-
-	// hotel Service proxy
-	hotelProxy := utils.ProxyToService(config.ServicesConfig.HOTEL_SERVICE_URL, "/api/v1")
+	// --- Versioned API ---
 	router.Route("/api/v1", func(r chi.Router) {
-		// public reads -- no token check
+
+		fakeAPIProxy := utils.ProxyToService("https://fakeapi.net", "/api/v1/fakeapi")
+		r.Get("/fakeapi", fakeAPIProxy)
+		r.Get("/fakeapi/*", fakeAPIProxy)
+
+		// Auth + RBAC management routes (signup, login, roles, permissions...)
+		UserRouter.Register(r)
+		RoleRouter.Register(r)
+		PermissionRouter.Register(r)
+		RolePermissionRouter.Register(r)
+		UserRoleRouter.Register(r)
+
+		// --- Hotel Service proxy ---
+		hotelProxy := utils.ProxyToService(config.ServicesConfig.HOTEL_SERVICE_URL, "/api/v1")
+
+		// Public reads — anyone can browse/search, no login needed.
 		r.Get("/hotels", hotelProxy)
-		r.Get("/hotels/{id}", hotelProxy)
+		r.Get("/hotel/{id}", hotelProxy)
 
-		// private writes -- need auth check
+		// Writes — require login AND the "listing" permission that
+		// actually matches what's seeded (host/admin have it, plain
+		// "user" role only has listing:read, not write/delete).
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthCookie)
-			r.Post("/hotels", hotelProxy)
-			r.Patch("/hotels/{id}", hotelProxy)
-			r.Patch("/hotels/{id}/restore", hotelProxy)
-			r.Delete("/hotels/{id}", hotelProxy)
+			r.Use(middleware.RequirePermission("listing:write"))
+			r.Post("/hotel", hotelProxy)
+			r.Patch("/hotel/{id}", hotelProxy)
+			r.Patch("/hotel/{id}/restore", hotelProxy)
 		})
-	})
-
-	// booking service proxy
-	bookingProxy := utils.ProxyToService(config.ServicesConfig.BOOKING_SERVICE_URL, "api/v1")
-	router.Route("/api/v1", func(r chi.Router) {
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthCookie)
-			r.Post("/create", bookingProxy)
-			r.Post("/confirm/{key}", bookingProxy)
-			r.Post("/cancel/{id}", bookingProxy)
+			r.Use(middleware.RequirePermission("listing:delete"))
+			r.Delete("/hotel/{id}", hotelProxy)
 		})
-	})
 
-	// review service proxy
+		// --- Booking Service proxy ---
+		bookingProxy := utils.ProxyToService(config.ServicesConfig.BOOKING_SERVICE_URL, "/api/v1")
+
+		// All booking actions require login. Every seeded role (user,
+		// host, admin) has booking:write, so RequirePermission here
+		// would currently pass for everyone anyway — AuthCookie alone
+		// is enough until a role needs to be excluded from booking.
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthCookie)
+			r.Post("/booking/create", bookingProxy)
+			r.Post("/booking/confirm/{key}", bookingProxy)
+			r.Post("/booking/cancel/{id}", bookingProxy)
+		})
+
+		// --- Review Service proxy ---
+		// Not wired yet — Review Service is empty.
+	})
 
 	return router
 }
-
-

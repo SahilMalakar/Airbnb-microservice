@@ -9,7 +9,7 @@ import { app } from './server.js';
 import { errorMiddleware } from './shared/middlewares/globalError.js';
 
 app.use('/api/v1', heathcheckRouter);
-app.use('/api/v1', bookingRouter);
+app.use('/api/v1/booking', bookingRouter);
 
 app.use(errorMiddleware);
 
