@@ -86,14 +86,17 @@ func SetUpRouter(
 		// --- Booking Service proxy ---
 		bookingProxy := utils.ProxyToService(config.ServicesConfig.BOOKING_SERVICE_URL, "/api/v1")
 
-		// All booking actions require login. Every seeded role (user,
-		// host, admin) has booking:write, so RequirePermission here
-		// would currently pass for everyone anyway — AuthCookie alone
-		// is enough until a role needs to be excluded from booking.
+		// All booking actions require login.
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthCookie)
+			r.Use(middleware.RequirePermission("booking:write"))
 			r.Post("/booking/create", bookingProxy)
 			r.Post("/booking/confirm/{key}", bookingProxy)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthCookie)
+			r.Use(middleware.RequirePermission("booking:delete"))
 			r.Post("/booking/cancel/{id}", bookingProxy)
 		})
 
