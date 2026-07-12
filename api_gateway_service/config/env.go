@@ -83,3 +83,14 @@ func GetEnvStringList(key string, fallback []string) []string {
 	}
 	return parts
 }
+
+
+type ServicesConfigType struct {
+	HOTEL_SERVICE_URL   string
+	BOOKING_SERVICE_URL string
+}
+
+var ServicesConfig = ServicesConfigType{
+	HOTEL_SERVICE_URL:   RequireEnvString("HOTEL_SERVICE_URL"),
+	BOOKING_SERVICE_URL: RequireEnvString("BOOKING_SERVICE_URL"),
+}

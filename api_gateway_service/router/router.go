@@ -63,7 +63,38 @@ func SetUpRouter(
 	RolePermissionRouter.Register(router)
 	UserRoleRouter.Register(router)
 
+	// hotel Service proxy
+	hotelProxy := utils.ProxyToService(config.ServicesConfig.HOTEL_SERVICE_URL, "/api/v1")
+	router.Route("/api/v1", func(r chi.Router) {
+		// public reads -- no token check
+		r.Get("/hotels", hotelProxy)
+		r.Get("/hotels/{id}", hotelProxy)
+
+		// private writes -- need auth check
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthCookie)
+			r.Post("/hotels", hotelProxy)
+			r.Patch("/hotels/{id}", hotelProxy)
+			r.Patch("/hotels/{id}/restore", hotelProxy)
+			r.Delete("/hotels/{id}", hotelProxy)
+		})
+	})
+
+	// booking service proxy
+	bookingProxy := utils.ProxyToService(config.ServicesConfig.BOOKING_SERVICE_URL, "api/v1")
+	router.Route("/api/v1", func(r chi.Router) {
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthCookie)
+			r.Post("/create", bookingProxy)
+			r.Post("/confirm/{key}", bookingProxy)
+			r.Post("/cancel/{id}", bookingProxy)
+		})
+	})
+
+	// review service proxy
+
 	return router
 }
 
-// https://fakeapi.net/products
+
