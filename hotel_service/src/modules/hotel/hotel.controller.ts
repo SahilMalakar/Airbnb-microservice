@@ -14,7 +14,11 @@ import {
 
 export const createHotelController: RequestHandler = asyncHandler(
     async (req, res) => {
-        const hotel = await createHotelService(req.body);
+        const hostId = req.userId;
+        const hotel = await createHotelService({
+            ...req.body,
+            hostId,
+        });
 
         sendSuccess(res, hotel, 'hotel created successfully', 201);
     }

@@ -1,10 +1,10 @@
 import type { Prisma } from '../../infra/database/generated/client.js';
 import { logger } from '../../infra/logger/index.js';
 import { NotFoundError } from '../../shared/errors/app.error.js';
-import type { CreateHotelDto, UpdateHotelDto } from './hotel.dto.js';
+import type { CreateHotelInputDto, UpdateHotelDto } from './hotel.dto.js';
 import { hotelRepository } from './hotel.repository.js';
 
-export const createHotelService = async (hotelData: CreateHotelDto) => {
+export const createHotelService = async (hotelData: CreateHotelInputDto) => {
     const hotel = await hotelRepository.createHotel(hotelData);
     logger.info('hotel created successfully', { hotelId: hotel.id });
     return hotel;

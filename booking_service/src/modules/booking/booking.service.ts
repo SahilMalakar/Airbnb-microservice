@@ -4,9 +4,13 @@ import { logger } from '../../infra/logger/index.js';
 import { bookingExpiryQueue } from '../../infra/queue/queue.client.js';
 import { redlock } from '../../infra/redis/redis.js';
 import { BadRequestError } from '../../shared/errors/app.error.js';
-import { CACHE_KEY, HOLD_DURATION_MS, TTL } from '../../shared/utils/constant.js';
+import {
+    CACHE_KEY,
+    HOLD_DURATION_MS,
+    TTL,
+} from '../../shared/utils/constant.js';
 import { generateIdempotencyKey } from '../../shared/utils/generateIdempotency.js';
-import type { CreateBookingDto } from './booking.dto.js';
+import type { CreateBookingInputDto } from './booking.dto.js';
 import {
     cancelBookingWithLock,
     confirmBookingWithLock,
@@ -24,7 +28,7 @@ import {
 // applying prisma transaction with idempotency key to prevent a user from double booking
 // applying distributed redis lock (redLock) to prevent Concurent Booking by mutiple users
 
-export async function createBookingService(data: CreateBookingDto) {
+export async function createBookingService(data: CreateBookingInputDto) {
     const key = generateIdempotencyKey();
 
     // The Redis lock is scoped to the room, not the whole hotel.
@@ -39,7 +43,9 @@ export async function createBookingService(data: CreateBookingDto) {
     try {
         lock = await redlock.acquire([bookingResourceKey], TTL);
     } catch (err) {
-        throw new BadRequestError('This room is currently being booked, please retry');
+        throw new BadRequestError(
+            'This room is currently being booked, please retry'
+        );
     }
 
     try {
@@ -143,19 +149,21 @@ export async function confirmBookingService(key: string) {
     });
 }
 
-export async function cancelBookingService(bookingId: number) {
+export async function cancelBookingService(bookingId: number, userId: number) {
     return await prisma.$transaction(async (tx) => {
-        const result = await cancelBookingWithLock(bookingId, tx);
+        const result = await cancelBookingWithLock(bookingId, userId, tx);
 
         if (!result || !result.booking) {
-            logger.warn("Booking cannot be cancelled (already cancelled or expired).", bookingId);
-            throw new BadRequestError("Booking cannot be cancelled (already cancelled or expired).")
+            logger.warn(
+                'Booking cannot be cancelled (already cancelled or expired).',
+                bookingId
+            );
+            throw new BadRequestError(
+                'Booking cannot be cancelled (already cancelled or expired).'
+            );
         }
 
-        const {
-            booking,
-            previousStatus
-        } = result;
+        const { booking, previousStatus } = result;
 
         if (previousStatus === BookingStatus.PENDING) {
             await releaseHeldRoomAvailability(
@@ -164,7 +172,10 @@ export async function cancelBookingService(bookingId: number) {
                 booking.checkOutDate,
                 tx
             );
-            logger.info("Booking cancelled and held count released", booking.id);
+            logger.info(
+                'Booking cancelled and held count released',
+                booking.id
+            );
         } else {
             await releaseBookedRoomAvailability(
                 booking.roomId,
@@ -172,11 +183,13 @@ export async function cancelBookingService(bookingId: number) {
                 booking.checkOutDate,
                 tx
             );
-            logger.info("Booking cancelled and booking count released", booking.id);
+            logger.info(
+                'Booking cancelled and booking count released',
+                booking.id
+            );
         }
 
-        logger.info("Booking cancelled successfully", booking.id);
+        logger.info('Booking cancelled successfully', booking.id);
         return booking;
     });
-
 }

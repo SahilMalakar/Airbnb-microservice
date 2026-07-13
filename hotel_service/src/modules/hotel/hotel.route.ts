@@ -13,11 +13,13 @@ import {
     recoveryHotelController,
 } from './hotel.controller.js';
 import { idSchema } from '../../shared/utils/id.convert.js';
+import { extractUserId } from '../../shared/middlewares/extractUserId.js';
 
 const hotelRouter: Router = Router();
 
 hotelRouter.post(
     '/hotel',
+    extractUserId,
     validateRequestBody(createHotelSchema),
     createHotelController
 );

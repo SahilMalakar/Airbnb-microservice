@@ -5,7 +5,6 @@ import type { BookingExpiryJobDto } from '../../shared/types/bookingExpiery.type
 import { BOOKING_EXPIRY_QUEUE } from '../../shared/utils/constant.js';
 import { processExpiryJob } from './handlers/expiry.handler.js';
 
-
 export const bookingExpiryWorker = new Worker<BookingExpiryJobDto>(
     BOOKING_EXPIRY_QUEUE,
     async (job: Job<BookingExpiryJobDto>) => {

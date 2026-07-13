@@ -11,7 +11,11 @@ import { idSchema } from '../../shared/utils/id.convert.js';
 
 export const createBookingController: RequestHandler = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
-        const booking = await createBookingService(req.body);
+        const userId = req.userId;
+        const booking = await createBookingService({
+            ...req.body,
+            userId,
+        });
 
         sendSuccess(res, booking, 'Booking created successfully', 201);
     }
@@ -34,7 +38,13 @@ export const confirmBookingController: RequestHandler = asyncHandler(
 export const cancelBookingController: RequestHandler = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
         const parsed = idSchema.parse(req.params);
-        const booking = await cancelBookingService(parsed.id);
+        const userId = req.userId;
+
+        if (!userId) {
+            throw new NotFoundError('User not found');
+        }
+
+        const booking = await cancelBookingService(parsed.id, userId);
         sendSuccess(res, booking, 'Booking cancelled successfully', 200);
     }
 );

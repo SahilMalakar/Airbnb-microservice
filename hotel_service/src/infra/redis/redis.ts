@@ -8,7 +8,7 @@ let redisInstance: Redis | null = null;
 export function getRedisClient(): Redis {
     if (!redisInstance) {
         redisInstance = new Redis(RedisConfig.REDIS_URL, {
-            keyPrefix: "srv:hotel:",
+            keyPrefix: 'srv:hotel:',
         });
 
         redisInstance.on('connect', () => {
@@ -22,4 +22,3 @@ export function getRedisClient(): Redis {
 
     return redisInstance;
 }
-

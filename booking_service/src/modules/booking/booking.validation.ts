@@ -3,7 +3,6 @@ import { z } from 'zod';
 export const BookingStatus = z.enum(['PENDING', 'CONFIRMED', 'CANCELLED']);
 export type BookingStatus = z.infer<typeof BookingStatus>;
 
-
 const dateOnly = z
     .string()
     .regex(
@@ -21,7 +20,6 @@ const dateOnly = z
 // ---- Create Booking ----
 export const createBookingSchema = z
     .object({
-        userId: z.number().int().positive(),
         roomId: z.number().int().positive(),
         totalGuests: z
             .number()

@@ -7,7 +7,6 @@ export const roomTypeEnum = z.enum(['STANDARD', 'DELUXE', 'SUITE']);
 export const createHotelSchema = z.object({
     name: z.string().min(2).max(100),
     description: z.string().min(10).max(1000),
-    hostId: z.number().int().positive(),
     address: z.string().min(5).max(255),
     pincode: z.string().regex(/^[0-9]{6}$/),
     cityId: z.number().int().positive(),

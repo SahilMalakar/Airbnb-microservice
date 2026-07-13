@@ -6,6 +6,7 @@ import type {
 import { prisma } from '../../infra/database/prisma.js';
 import {
     BadRequestError,
+    ForbiddenError,
     NotFoundError,
 } from '../../shared/errors/app.error.js';
 import { logger } from '../../infra/logger/index.js';
@@ -30,7 +31,6 @@ export async function getRoomRefById(
 ) {
     return await tx.roomRef.findUnique({ where: { roomId } });
 }
-
 
 export async function getBookingById(bookingId: number) {
     const booking = await prisma.booking.findUnique({
@@ -86,7 +86,6 @@ export async function findActiveHold(
         },
     });
 }
-
 
 // STEP 2 — the REAL lock (this is the important one)
 // This is the part that actually PREVENTS double-booking, even if
@@ -200,7 +199,7 @@ export async function confirmBookingWithLock(
     }
 
     const booking = await tx.booking.findUnique({ where: { id: bookingId } });
-    
+
     // The booking is now officially CONFIRMED — move its days from
     // "held" to "booked" on the calendar so the numbers stay accurate.
     if (booking) {
@@ -242,7 +241,6 @@ export async function finalizeIdempotencyKey(
     });
 }
 
-
 // Atomically flips PENDING -> EXPIRED, but only if still expired at the
 // moment of the write — guards against a race with confirmBookingWithLock
 // (e.g. the delayed job firing right as the user confirms).
@@ -272,13 +270,30 @@ export async function expireBookingWithLock(
 // prior status to know whether to release heldCount or bookedCount.
 export async function cancelBookingWithLock(
     bookingId: number,
+    userId: number,
     tx: Prisma.TransactionClient
-): Promise<{ booking: Awaited<ReturnType<typeof getBookingById>>; previousStatus: string } | null> {
-    const rows: Array<{ id: number; status: string; roomId: number; checkInDate: Date; checkOutDate: Date }> =
+): Promise<{
+    booking: Awaited<ReturnType<typeof getBookingById>>;
+    previousStatus: string;
+} | null> {
+    const rows: Array<{
+        id: number;
+        status: string;
+        roomId: number;
+        userId: number;
+        checkInDate: Date;
+        checkOutDate: Date;
+    }> =
         await tx.$queryRaw`SELECT * FROM "Booking" WHERE id = ${bookingId} FOR UPDATE`;
 
     if (rows.length === 0) {
         throw new NotFoundError('booking not found');
+    }
+
+    if (rows[0]!.userId !== userId) {
+        throw new ForbiddenError(
+            'You are not authorized to cancel this booking'
+        );
     }
 
     const previousStatus = rows[0]!.status;

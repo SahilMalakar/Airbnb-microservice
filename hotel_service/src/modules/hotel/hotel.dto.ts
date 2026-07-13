@@ -1,24 +1,26 @@
 // hotel.dto.ts
 import { z } from 'zod';
 import {
-  createHotelSchema,
-  updateHotelSchema,
-  getHotelsQuerySchema,
-  createCitySchema,
-  updateCitySchema,
-  createStateSchema,
-  updateStateSchema,
-  createRoomCategorySchema,
-  updateRoomCategorySchema,
-  createRoomSchema,
-  updateRoomSchema,
-  getRoomsQuerySchema,
-  roomTypeEnum,
+    createHotelSchema,
+    updateHotelSchema,
+    getHotelsQuerySchema,
+    createCitySchema,
+    updateCitySchema,
+    createStateSchema,
+    updateStateSchema,
+    createRoomCategorySchema,
+    updateRoomCategorySchema,
+    createRoomSchema,
+    updateRoomSchema,
+    getRoomsQuerySchema,
+    roomTypeEnum,
 } from './hotel.validation.js';
 
 export type RoomTypeDto = z.infer<typeof roomTypeEnum>;
 
 export type CreateHotelDto = z.infer<typeof createHotelSchema>;
+export type CreateHotelInputDto = CreateHotelDto & { hostId: number };
+
 export type UpdateHotelDto = z.infer<typeof updateHotelSchema>;
 export type GetHotelsQueryDto = z.infer<typeof getHotelsQuerySchema>;
 

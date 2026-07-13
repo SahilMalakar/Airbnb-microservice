@@ -6,4 +6,4 @@ export const CACHE_KEY = {
     booking: (hotelId: number | string) => `hotel:${hotelId}:booking`,
 };
 
-export const BOOKING_EXPIRY_QUEUE = 'booking_expiry'
+export const BOOKING_EXPIRY_QUEUE = 'booking_expiry';
