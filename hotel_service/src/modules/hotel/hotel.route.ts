@@ -30,6 +30,7 @@ hotelRouter.get('/hotels', getAllHotelsController);
 
 hotelRouter.patch(
     '/hotel/:id',
+    extractUserId,
     validateParams(idSchema),
     validateRequestBody(updateHotelSchema),
     updateHotelController
@@ -37,12 +38,14 @@ hotelRouter.patch(
 
 hotelRouter.patch(
     '/hotel/:id/restore',
+    extractUserId,
     validateParams(idSchema),
     recoveryHotelController
 );
 
 hotelRouter.delete(
     '/hotel/:id',
+    extractUserId,
     validateParams(idSchema),
     deleteHotelController
 );

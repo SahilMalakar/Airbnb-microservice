@@ -10,9 +10,6 @@ import {
     updateStateSchema,
     createRoomCategorySchema,
     updateRoomCategorySchema,
-    createRoomSchema,
-    updateRoomSchema,
-    getRoomsQuerySchema,
     roomTypeEnum,
 } from './hotel.validation.js';
 
@@ -32,7 +29,3 @@ export type UpdateStateDto = z.infer<typeof updateStateSchema>;
 
 export type CreateRoomCategoryDto = z.infer<typeof createRoomCategorySchema>;
 export type UpdateRoomCategoryDto = z.infer<typeof updateRoomCategorySchema>;
-
-export type CreateRoomDto = z.infer<typeof createRoomSchema>;
-export type UpdateRoomDto = z.infer<typeof updateRoomSchema>;
-export type GetRoomsQueryDto = z.infer<typeof getRoomsQuerySchema>;

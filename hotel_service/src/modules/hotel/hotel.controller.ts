@@ -51,7 +51,8 @@ export const updateHotelController: RequestHandler = asyncHandler(
         if (!parsed.id) {
             throw new BadRequestError('hotel id is required');
         }
-        const hotel = await updateHotelService(parsed.id, req.body);
+        const userId = req.userId;
+        const hotel = await updateHotelService(parsed.id, req.body, userId);
 
         sendSuccess(res, hotel, 'Hotel updated successfully', 200);
     }
@@ -64,7 +65,8 @@ export const deleteHotelController: RequestHandler = asyncHandler(
         if (!parsed.id) {
             throw new BadRequestError('hotel id is required');
         }
-        const hotel = await deleteHotelService(parsed.id);
+        const userId = req.userId;
+        const hotel = await deleteHotelService(parsed.id, userId);
 
         sendSuccess(res, hotel, 'Hotel disabled successfully', 200);
     }
@@ -77,7 +79,8 @@ export const recoveryHotelController: RequestHandler = asyncHandler(
         if (!parsed.id) {
             throw new BadRequestError('hotel id is required');
         }
-        const hotel = await recoveryHotelService(parsed.id);
+        const userId = req.userId;
+        const hotel = await recoveryHotelService(parsed.id, userId);
 
         sendSuccess(res, hotel, 'Hotel recovered successfully', 200);
     }
