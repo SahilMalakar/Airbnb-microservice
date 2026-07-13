@@ -1,6 +1,9 @@
 import type { Prisma } from '../../infra/database/generated/client.js';
 import { logger } from '../../infra/logger/index.js';
-import { NotFoundError, ForbiddenError } from '../../shared/errors/app.error.js';
+import {
+    NotFoundError,
+    ForbiddenError,
+} from '../../shared/errors/app.error.js';
 import type { CreateHotelInputDto, UpdateHotelDto } from './hotel.dto.js';
 import {
     createHotel,
@@ -35,7 +38,11 @@ export const getAllHotelsService = async () => {
     return hotels;
 };
 
-export const updateHotelService = async (id: number, data: UpdateHotelDto, userId: number) => {
+export const updateHotelService = async (
+    id: number,
+    data: UpdateHotelDto,
+    userId: number
+) => {
     const hotel = await findActiveHotelById(id);
 
     if (!hotel) {
@@ -81,7 +88,9 @@ export const recoveryHotelService = async (id: number, userId: number) => {
 
     if (hotel.hostId !== userId) {
         logger.warn('unauthorized recovery attempt', { hotelId: id, userId });
-        throw new ForbiddenError('You are not authorized to recover this hotel');
+        throw new ForbiddenError(
+            'You are not authorized to recover this hotel'
+        );
     }
 
     return recoverHotel(id);

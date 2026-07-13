@@ -29,11 +29,7 @@ roomRouter.post(
     createRoomController
 );
 
-roomRouter.get(
-    '/room/:id',
-    validateParams(idSchema),
-    getRoomByIdController
-);
+roomRouter.get('/room/:id', validateParams(idSchema), getRoomByIdController);
 
 roomRouter.get(
     '/rooms',

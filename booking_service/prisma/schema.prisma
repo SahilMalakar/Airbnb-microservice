@@ -15,9 +15,9 @@ datasource db {
 model Booking {
   id            Int           @id @default(autoincrement())
 
-  roomId        Int // reference to Hotel service's Room.id — not a real FK
-  userId        Int // reference to Auth service's User.id — not a real FK
-  hotelId       Int // Denormalized from RoomRef.hotelId at creation time. 
+  roomId        Int
+  userId        Int
+  hotelId       Int
   totalGuests   Int
   bookingAmount Int
   status        BookingStatus @default(PENDING)
@@ -55,35 +55,33 @@ model IdempotencyKey {
   bookingId Int?
 }
 
-// The atomicity target: hold/confirm/release all mutate this row
-// within the same DB transaction as the Booking write.
+// act as a index db table to scan faster the room availability for a date range
 model RoomAvailability {
   id     Int      @id @default(autoincrement())
 
-  roomId Int // reference to Hotel service's Room.id — not a real FK
-  date   DateTime @db.Date // just the date, no time component
+  roomId Int 
 
-  totalCount  Int @default(1) // usually 1 per physical room
-  bookedCount Int @default(0)
-  heldCount   Int @default(0)
+  date   DateTime @db.Date
+
+  totalCount  Int @default(1) // total available space/bed count in single room / hostel / apartment
+  bookedCount Int @default(0) // increases only if payment/booking confirmed
+  heldCount   Int @default(0) // increases when hold confirmed, decreases when confirmed or cancelled
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([roomId, date]) // one row per room per day — this IS the lock target
+  @@unique([roomId, date])
   @@index([roomId, date])
 }
 
-// Local read-model of active rooms, kept in sync via RoomCreated /
-// RoomUpdated / RoomDeleted events consumed from Hotel service.
-// Exists ONLY so the daily cron knows which roomIds to extend
-// RoomAvailability for — Booking service does not own room data.
+// cache metadata for rooms
 model RoomRef {
-  roomId    Int       @id // same value as Hotel service's Room.id
-  hotelId   Int // denormalized, useful for queries/reporting
-  isActive  Boolean   @default(true) // false once RoomDeleted event received
-  price     Int // denormalized snapshot, may drift — not source of truth
-  syncedAt  DateTime  @updatedAt
+  roomId       Int      @id // same value as Hotel service's Room.id
+  hotelId      Int // denormalized, useful for queries/reporting
+  isActive     Boolean   @default(true) // false once RoomDeleted event received
+  price        Int // denormalized snapshot, may drift — not source of truth
+  maxOccupancy Int      @default(1)
+  syncedAt     DateTime @updatedAt
 
   @@index([hotelId])
   @@index([isActive])

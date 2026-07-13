@@ -7,3 +7,5 @@ export const CACHE_KEY = {
 };
 
 export const BOOKING_EXPIRY_QUEUE = 'booking_expiry';
+
+export const ROOM_EVENTS_BOOKING_QUEUE = 'room-events-booking-queue';
