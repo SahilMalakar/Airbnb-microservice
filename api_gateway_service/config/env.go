@@ -94,3 +94,11 @@ var ServicesConfig = ServicesConfigType{
 	HOTEL_SERVICE_URL:   RequireEnvString("HOTEL_SERVICE_URL"),
 	BOOKING_SERVICE_URL: RequireEnvString("BOOKING_SERVICE_URL"),
 }
+
+type RedisConfigType struct {
+	REDIS_URL string
+}
+
+var RedisConfig = RedisConfigType{
+	REDIS_URL: RequireEnvString("REDIS_URL"),
+}

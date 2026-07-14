@@ -17,19 +17,6 @@ const (
 	CtxUserPerms   ctxKey = "userPermissions"
 )
 
-// AuthCookie verifies the JWT from the access_token cookie and extracts
-// identity + authorization data from its claims — no DB call, everything
-// needed lives in the signed token (roles/permissions embedded at login).
-//
-// Sets X-User-ID / X-User-Email as HEADERS: use headers only for values that
-// must cross a process boundary — e.g. forwarded onward by ReverseProxy to
-// downstream services (Hotel/Booking/Review) that can't read this Go
-// process's context.Context.
-//
-// Sets roles/permissions on request CONTEXT: use context for values only
-// needed within this same process/binary — e.g. by RequireRole/RequirePermission
-// middleware further down the chain. Context avoids stringly-typed array
-// serialization (join/split) and stays properly typed as []string.
 func AuthCookie(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("access_token")

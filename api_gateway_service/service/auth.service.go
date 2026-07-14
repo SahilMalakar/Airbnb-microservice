@@ -1,9 +1,11 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/cache"
 	db "github.com/sahilmalakar/airbnb-microservice/api-gateway/db/repository"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/dto"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/models"
@@ -11,9 +13,10 @@ import (
 )
 
 type UserService interface {
-	SignUpService(data *dto.SignUpRequestDTO) (*models.User, string, string, error)
-	LoginService(data *dto.LoginRequestDTO) (*models.User, string, string, error)
-	RefreshTokenService(refreshToken string) (string, string, error)
+	SignUpService(ctx context.Context, data *dto.SignUpRequestDTO) (*models.User, string, string, error)
+	LoginService(ctx context.Context, data *dto.LoginRequestDTO) (*models.User, string, string, error)
+	RefreshTokenService(ctx context.Context, refreshToken string) (string, string, error)
+	LogoutService(ctx context.Context, refreshToken string) error
 	GetAllUsersService() ([]*models.User, error)
 	GetUserByIDService(id int64) (*models.User, error)
 }
@@ -24,20 +27,47 @@ type UserServiceImpl struct {
 	userRepository     db.UserRepository
 	userRoleRepository db.UserRoleRepository
 	roleRepository     db.RoleRepository // add this
+	refreshTokenStore  cache.RefreshTokenStore
 }
 
-func NewUserService(userRepo db.UserRepository, userRoleRepo db.UserRoleRepository, roleRepo db.RoleRepository) UserService {
+func NewUserService(userRepo db.UserRepository, userRoleRepo db.UserRoleRepository, roleRepo db.RoleRepository, refreshTokenStore cache.RefreshTokenStore) UserService {
 	return &UserServiceImpl{
 		userRepository:     userRepo,
 		userRoleRepository: userRoleRepo,
 		roleRepository:     roleRepo,
+		refreshTokenStore:  refreshTokenStore,
 	}
 }
 
-// SignUpService hashes the password of the user, persists the user record
-// via the injected UserRepository, and issues an access + refresh token pair
-// so the user is immediately logged in after signup.
-func (u *UserServiceImpl) SignUpService(data *dto.SignUpRequestDTO) (*models.User, string, string, error) {
+func (u *UserServiceImpl) issueRefreshToken(ctx context.Context, userID int64, familyID string) (string, error) {
+	jti := utils.NewTokenID()
+
+	if err := u.refreshTokenStore.IssueFamily(ctx, familyID, jti, utils.RefreshTokenTTL); err != nil {
+		return "", fmt.Errorf("failed to persist refresh token family: %w", err)
+	}
+
+	token, err := utils.SignRefreshToken(userID, familyID, jti)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+func (u *UserServiceImpl) rotateRefreshToken(ctx context.Context, userID int64, familyID, oldJTI string) (string, error) {
+	newJTI := utils.NewTokenID()
+
+	if err := u.refreshTokenStore.Rotate(ctx, familyID, oldJTI, newJTI, utils.RefreshTokenTTL); err != nil {
+		return "", err
+	}
+
+	token, err := utils.SignRefreshToken(userID, familyID, newJTI)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate refresh token")
+	}
+	return token, nil
+}
+
+func (u *UserServiceImpl) SignUpService(ctx context.Context, data *dto.SignUpRequestDTO) (*models.User, string, string, error) {
 	_, err := u.userRepository.GetUserByEmail(data.Email)
 	if err == nil {
 		return nil, "", "", fmt.Errorf("user with email %s already exists", data.Email)
@@ -85,7 +115,8 @@ func (u *UserServiceImpl) SignUpService(data *dto.SignUpRequestDTO) (*models.Use
 		return nil, "", "", fmt.Errorf("failed to generate access token")
 	}
 
-	refreshToken, err := utils.CreateRefreshToken(createdUser.ID)
+	familyID := utils.NewRefreshFamilyID()
+	refreshToken, err := u.issueRefreshToken(ctx, createdUser.ID, familyID)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate refresh token")
 	}
@@ -93,7 +124,7 @@ func (u *UserServiceImpl) SignUpService(data *dto.SignUpRequestDTO) (*models.Use
 	return createdUser, accessToken, refreshToken, nil
 }
 
-func (u *UserServiceImpl) LoginService(data *dto.LoginRequestDTO) (*models.User, string, string, error) {
+func (u *UserServiceImpl) LoginService(ctx context.Context, data *dto.LoginRequestDTO) (*models.User, string, string, error) {
 	existingUser, err := u.userRepository.GetUserByEmail(data.Email)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("invalid email or password")
@@ -117,7 +148,8 @@ func (u *UserServiceImpl) LoginService(data *dto.LoginRequestDTO) (*models.User,
 		return nil, "", "", fmt.Errorf("failed to generate access token")
 	}
 
-	refreshToken, err := utils.CreateRefreshToken(existingUser.ID)
+	familyID := utils.NewRefreshFamilyID()
+	refreshToken, err := u.issueRefreshToken(ctx, existingUser.ID, familyID)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate refresh token")
 	}
@@ -125,7 +157,7 @@ func (u *UserServiceImpl) LoginService(data *dto.LoginRequestDTO) (*models.User,
 	return existingUser, accessToken, refreshToken, nil
 }
 
-func (u *UserServiceImpl) RefreshTokenService(refreshToken string) (string, string, error) {
+func (u *UserServiceImpl) RefreshTokenService(ctx context.Context, refreshToken string) (string, string, error) {
 	claims, err := utils.VerifyRefreshToken(refreshToken)
 	if err != nil {
 		return "", "", fmt.Errorf("invalid refresh token")
@@ -135,11 +167,28 @@ func (u *UserServiceImpl) RefreshTokenService(refreshToken string) (string, stri
 	if !ok {
 		return "", "", fmt.Errorf("invalid token claims")
 	}
+	familyID, ok := claims["familyId"].(string)
+	if !ok {
+		return "", "", fmt.Errorf("invalid token claims")
+	}
+	jti, ok := claims["jti"].(string)
+	if !ok {
+		return "", "", fmt.Errorf("invalid token claims")
+	}
 	userID := int64(idFloat)
 
 	existingUser, err := u.userRepository.GetUserByID(userID)
 	if err != nil {
 		return "", "", fmt.Errorf("user not found")
+	}
+
+	newRefreshToken, err := u.rotateRefreshToken(ctx, existingUser.ID, familyID, jti)
+	if err != nil {
+		if errors.Is(err, cache.ErrReuseDetected) || errors.Is(err, cache.ErrFamilyNotFound) {
+			fmt.Println("SECURITY: refresh token reuse detected, family revoked for user", userID)
+			return "", "", fmt.Errorf("refresh token invalid, please login again")
+		}
+		return "", "", fmt.Errorf("failed to rotate refresh token")
 	}
 
 	// re-fetch fresh roles/permissions — this is your staleness-correction point
@@ -157,12 +206,22 @@ func (u *UserServiceImpl) RefreshTokenService(refreshToken string) (string, stri
 		return "", "", fmt.Errorf("failed to generate access token")
 	}
 
-	newRefreshToken, err := utils.CreateRefreshToken(existingUser.ID)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to generate refresh token")
-	}
-
 	return newAccessToken, newRefreshToken, nil
+}
+
+func (u *UserServiceImpl) LogoutService(ctx context.Context, refreshToken string) error {
+	if refreshToken == "" {
+		return nil
+	}
+	claims, err := utils.VerifyRefreshToken(refreshToken)
+	if err != nil {
+		return nil
+	}
+	familyID, ok := claims["familyId"].(string)
+	if !ok {
+		return nil
+	}
+	return u.refreshTokenStore.Revoke(ctx, familyID)
 }
 
 func (u *UserServiceImpl) GetAllUsersService() ([]*models.User, error) {

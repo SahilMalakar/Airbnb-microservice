@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/cache"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/config"
 	db "github.com/sahilmalakar/airbnb-microservice/api-gateway/db/repository"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/handler"
@@ -55,6 +56,17 @@ func (a *Application) RunServer() error {
 	fmt.Println("Database connected successfully")
 	defer conn.Close()
 
+	redisClient, err := config.LoadRedis()
+	if err != nil {
+		fmt.Println("Error setting up redis :", err)
+		return err
+	}
+
+	fmt.Println("Redis connected successfully")
+	defer redisClient.Close()
+
+	refreshTokenStore := cache.NewRefreshTokenStore(redisClient)
+
 	// Wire dependencies: DB → Repository → Service → Controller → Router
 	// Repositories that UserService depends on must be created first.
 	roleRepo := db.NewRoleRepository(conn)
@@ -65,7 +77,7 @@ func (a *Application) RunServer() error {
 
 	// UserService now needs roleRepo + userRoleRepo to resolve default role
 	// and embed roles/permissions into JWTs at login/signup/refresh.
-	userService := service.NewUserService(userRepo, userRoleRepo, roleRepo)
+	userService := service.NewUserService(userRepo, userRoleRepo, roleRepo,refreshTokenStore)
 	userController := handler.NewUserController(userService)
 	userRouter := router.NewUserRouter(userController)
 

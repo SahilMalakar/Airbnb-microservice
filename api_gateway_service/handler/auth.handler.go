@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -23,7 +24,7 @@ func NewUserController(userService service.UserService) *UserController {
 // already happened in middleware.DecodeAndValidate before this runs.
 func (u *UserController) SignUp(w http.ResponseWriter, r *http.Request, req dto.SignUpRequestDTO) {
 
-	createdUser, accessToken, refreshToken, err := u.UserService.SignUpService(&req)
+	createdUser, accessToken, refreshToken, err := u.UserService.SignUpService(r.Context(), &req)
 	if err != nil {
 		utils.SendError(
 			w,
@@ -47,7 +48,7 @@ func (u *UserController) SignUp(w http.ResponseWriter, r *http.Request, req dto.
 // Login is now a ValidatedHandler[dto.LoginRequestDTO].
 func (u *UserController) Login(w http.ResponseWriter, r *http.Request, req dto.LoginRequestDTO) {
 
-	existingUser, accessToken, refreshToken, err := u.UserService.LoginService(&req)
+	existingUser, accessToken, refreshToken, err := u.UserService.LoginService(r.Context(), &req)
 	if err != nil {
 		utils.SendError(
 			w,
@@ -82,14 +83,10 @@ func (u *UserController) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newAccessToken, newRefreshToken, err := u.UserService.RefreshTokenService(cookie.Value)
+	newAccessToken, newRefreshToken, err := u.UserService.RefreshTokenService(r.Context(), cookie.Value)
 	if err != nil {
-		utils.SendError(
-			w,
-			http.StatusUnauthorized,
-			"Error refresh token",
-			err.Error(),
-		)
+		utils.ClearAuthCookies(w)
+		utils.SendError(w, http.StatusUnauthorized, "Error refresh token", err.Error())
 		return
 	}
 
@@ -126,7 +123,12 @@ func (u *UserController) Logout(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-
+	if cookie, err := r.Cookie("refresh_token"); err == nil {
+		if err := u.UserService.LogoutService(r.Context(), cookie.Value); err != nil {
+			fmt.Println("Error revoking refresh token family on logout:", err)
+			// don't fail the logout over this — cookies still get cleared below
+		}
+	}
 	utils.ClearAuthCookies(w)
 	utils.SendSuccess(
 		w,

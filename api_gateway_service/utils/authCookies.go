@@ -2,12 +2,11 @@ package utils
 
 import (
 	"net/http"
-	"time"
 )
 
 // setAuthCookies writes the access and refresh tokens as HttpOnly cookies.
 // Expiry durations here must stay in sync with utils.CreateAccessToken (30m)
-// and utils.CreateRefreshToken (3d).
+// and utils.SignRefreshToken (3d).
 func SetAuthCookies(w http.ResponseWriter, accessToken, refreshToken string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
@@ -16,7 +15,7 @@ func SetAuthCookies(w http.ResponseWriter, accessToken, refreshToken string) {
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int((30 * time.Minute).Seconds()),
+		MaxAge:   int(AccessTokenTTL.Seconds()),
 	})
 
 	http.SetCookie(w, &http.Cookie{
@@ -26,7 +25,7 @@ func SetAuthCookies(w http.ResponseWriter, accessToken, refreshToken string) {
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int((3 * 24 * time.Hour).Seconds()),
+		MaxAge:   int(RefreshTokenTTL.Seconds()),
 	})
 }
 
