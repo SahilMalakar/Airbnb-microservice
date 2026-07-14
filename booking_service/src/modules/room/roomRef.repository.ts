@@ -162,3 +162,19 @@ export async function releaseBookedRoomAvailability(
         WHERE "roomId" = ${roomId} AND "date" >= ${checkInDate}::date AND "date" < ${checkOutDate}::date
     `;
 }
+
+export async function cleanupFutureRoomAvailability(
+    roomId: number,
+    tx: Prisma.TransactionClient = prisma
+): Promise<number> {
+    // Conservative by design: only removes rows that are (a) in the future
+    // and (b) untouched by any active hold or confirmed booking. Better to
+    // leave a few harmless extra rows than to ever delete one a booking depends on.
+    return await tx.$executeRaw`
+        DELETE FROM "RoomAvailability"
+        WHERE "roomId" = ${roomId}
+            AND "date" > CURRENT_DATE
+            AND "heldCount" = 0
+            AND "bookedCount" = 0
+    `;
+}

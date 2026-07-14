@@ -163,6 +163,27 @@ export async function confirmBookingService(key: string, userId: number) {
             throw new BadRequestError('Idempotency Key is already finalized');
         }
 
+        // Guard: don't let a still-PENDING hold be confirmed if the room
+        // it points at has since been deactivated (host deleted the room,
+        // or cascade-deleted via hotel deletion). RoomRef.isActive is kept
+        // current by the event-driven sync from Hotel Service's outbox.
+        const pendingBooking = await tx.booking.findUnique({
+            where: { id: idempotencyKey!.bookingId! },
+        });
+
+        if (pendingBooking) {
+            const roomRef = await getRoomRefById(pendingBooking.roomId, tx);
+            if (!roomRef || !roomRef.isActive) {
+                logger.warn('confirmation blocked — room no longer active', {
+                    bookingId: pendingBooking.id,
+                    roomId: pendingBooking.roomId,
+                });
+                throw new BadRequestError(
+                    'This room is no longer available and cannot be confirmed'
+                );
+            }
+        }
+
         // payment call goes here — see note below
 
         const booking = await confirmBookingWithLock(

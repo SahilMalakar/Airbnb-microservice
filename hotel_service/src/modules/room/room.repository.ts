@@ -73,3 +73,43 @@ export async function recoverRoom(
         select: { id: true },
     });
 }
+
+export async function findActiveRoomsByHotelId(
+    hotelId: number,
+    tx: Prisma.TransactionClient = prisma
+): Promise<Room[]> {
+    return tx.room.findMany({
+        where: { hotelId, deletedAt: null },
+    });
+}
+
+export async function softDeleteRoomsByIds(
+    ids: number[],
+    deletedAt: Date,
+    tx: Prisma.TransactionClient = prisma
+) {
+    return tx.room.updateMany({
+        where: { id: { in: ids }, deletedAt: null },
+        data: { deletedAt },
+    });
+}
+
+export async function findRoomsByHotelIdAndDeletedAt(
+    hotelId: number,
+    deletedAt: Date,
+    tx: Prisma.TransactionClient = prisma
+): Promise<Room[]> {
+    return tx.room.findMany({
+        where: { hotelId, deletedAt },
+    });
+}
+
+export async function restoreRoomsByIds(
+    ids: number[],
+    tx: Prisma.TransactionClient = prisma
+) {
+    return tx.room.updateMany({
+        where: { id: { in: ids } },
+        data: { deletedAt: null },
+    });
+}

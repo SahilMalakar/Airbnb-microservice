@@ -72,11 +72,12 @@ export async function findHotelByIdIncludingDeleted(
 
 export async function softDeleteActiveHotel(
     id: number,
+    deletedAt: Date,
     tx: Prisma.TransactionClient = prisma
 ) {
     return tx.hotel.update({
         where: { id, deletedAt: null },
-        data: { deletedAt: new Date() },
+        data: { deletedAt },
         select: { id: true },
     });
 }
