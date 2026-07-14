@@ -6,11 +6,11 @@ import (
 	"github.com/go-chi/chi"
 	chimiddleware "github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
+	"github.com/redis/go-redis/v9"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/config"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/handler"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/middleware"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/utils"
-	"golang.org/x/time/rate"
 )
 
 type Router interface {
@@ -18,6 +18,7 @@ type Router interface {
 }
 
 func SetUpRouter(
+	redisClient *redis.Client,
 	UserRouter Router,
 	RoleRouter Router,
 	PermissionRouter Router,
@@ -39,8 +40,9 @@ func SetUpRouter(
 	router.Use(chimiddleware.Logger)
 	router.Use(chimiddleware.Recoverer)
 
-	limiter := rate.NewLimiter(rate.Every(1*time.Minute), 20)
-	router.Use(middleware.RateLimiter(limiter))
+	rateLimit := config.GetEnvInt("RATE_LIMIT_REQUESTS", 20)
+	rateLimitWindow := time.Duration(config.GetEnvInt("RATE_LIMIT_WINDOW_SECONDS", 60)) * time.Second
+	router.Use(middleware.RedisRateLimiter(redisClient, rateLimit, rateLimitWindow))
 
 	// --- Unversioned ---
 	router.Get("/health", handler.HealthHandler)

@@ -43,7 +43,7 @@ func (s *redisRefreshTokenStore) IssueFamily(ctx context.Context, familyID, jti 
 	return s.client.Set(ctx, familyKey(familyID), jti, ttl).Err()
 }
 
-// rotateScript runs as a single atomic Redis operation so two concurrent 
+// rotateScript runs as a single atomic Redis operation so two concurrent
 // lua script
 var rotateScript = redis.NewScript(`
 local current = redis.call('GET', KEYS[1])

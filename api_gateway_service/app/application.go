@@ -77,7 +77,7 @@ func (a *Application) RunServer() error {
 
 	// UserService now needs roleRepo + userRoleRepo to resolve default role
 	// and embed roles/permissions into JWTs at login/signup/refresh.
-	userService := service.NewUserService(userRepo, userRoleRepo, roleRepo,refreshTokenStore)
+	userService := service.NewUserService(userRepo, userRoleRepo, roleRepo, refreshTokenStore)
 	userController := handler.NewUserController(userService)
 	userRouter := router.NewUserRouter(userController)
 
@@ -97,7 +97,7 @@ func (a *Application) RunServer() error {
 	userRoleController := handler.NewUserRoleController(userRoleService)
 	userRoleRouter := router.NewUserRoleRouter(userRoleController)
 
-	chi := router.SetUpRouter(userRouter, roleRouter, permissionRouter, rolePermissionRouter, userRoleRouter)
+	chi := router.SetUpRouter(redisClient, userRouter, roleRouter, permissionRouter, rolePermissionRouter, userRoleRouter)
 
 	server := &http.Server{
 		Addr:         a.Config.Address,
