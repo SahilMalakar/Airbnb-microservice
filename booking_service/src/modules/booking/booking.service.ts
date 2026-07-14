@@ -9,7 +9,7 @@ import {
     HOLD_DURATION_MS,
     TTL,
 } from '../../shared/utils/constant.js';
-import { generateIdempotencyKey } from '../../shared/utils/generateIdempotency.js';
+import { calculateNights } from '../../shared/utils/dateRange.js';
 import {
     lockAndHoldRoomAvailability,
     releaseBookedRoomAvailability,
@@ -23,22 +23,33 @@ import {
     createIdempotencyKey,
     finalizeIdempotencyKey,
     findActiveHold,
+    findIdempotencyKeyWithBooking,
     getIdempotencyKeyWithLock,
     getRoomRefById,
+    isUniqueConstraintViolation,
 } from './booking.repository.js';
 
 // applying prisma transaction with idempotency key to prevent a user from double booking
 // applying distributed redis lock (redLock) to prevent Concurent Booking by mutiple users
 
-export async function createBookingService(data: CreateBookingInputDto) {
-    const key = generateIdempotencyKey();
+export async function createBookingService(
+    data: CreateBookingInputDto,
+    idempotencyKey: string
+) {
+    const existing = await findIdempotencyKeyWithBooking(idempotencyKey, data.userId);
+    if (existing?.booking) {
+        logger.info('Idempotent replay — returning existing booking', {
+            idempotencyKey,
+            userId: data.userId,
+            bookingId: existing.booking.id,
+        });
+        return {
+            booking: existing.booking,
+            idempotencyKey: existing.key,
+            holdExpiresAt: existing.booking.holdExpiresAt,
+        };
+    }
 
-    // The Redis lock is scoped to the room, not the whole hotel.
-    // Think of this like a "please wait, someone's using this door
-    // handle" sign — it just reduces two people bumping into each
-    // other at the same instant. It is a CONVENIENCE, not the real
-    // safety net. The real safety net is lockAndHoldRoomAvailability()
-    // in the repository, which the database itself enforces.
     const bookingResourceKey = CACHE_KEY.booking(data.roomId);
 
     let lock;
@@ -51,11 +62,8 @@ export async function createBookingService(data: CreateBookingInputDto) {
     }
 
     try {
-        const { booking, idempotencyKey } = await prisma.$transaction(
+        const { booking, idempotencyKeyRow } = await prisma.$transaction(
             async (tx) => {
-                // Make sure the room is real and still active before
-                // doing anything else — no point locking dates for a
-                // room that doesn't exist.
                 const roomRef = await getRoomRefById(data.roomId, tx);
 
                 if (!roomRef || !roomRef.isActive) {
@@ -64,7 +72,12 @@ export async function createBookingService(data: CreateBookingInputDto) {
                     );
                 }
 
-                // Quick peek at the calendar first (cheap, fails fast).
+                if (data.totalGuests > roomRef.maxOccupancy) {
+                    throw new BadRequestError(
+                        `This room can accommodate at most ${roomRef.maxOccupancy} guest(s)`
+                    );
+                }
+
                 const existingHold = await findActiveHold(
                     data.roomId,
                     data.checkInDate,
@@ -77,10 +90,6 @@ export async function createBookingService(data: CreateBookingInputDto) {
                     );
                 }
 
-                // ⭐ The actual safety check — grabs a seat for every
-                // day of the stay, or cancels the whole thing if any
-                // day is already full. This is what really stops two
-                // people from booking the same room on the same day.
                 await lockAndHoldRoomAvailability(
                     data.roomId,
                     data.checkInDate,
@@ -88,31 +97,54 @@ export async function createBookingService(data: CreateBookingInputDto) {
                     tx
                 );
 
+                const nights = calculateNights(data.checkInDate, data.checkOutDate);
+                const bookingAmount = roomRef.price * nights;
+
                 const booking = await createBookingRepo(
-                    { ...data, hotelId: roomRef.hotelId },
+                    {
+                        roomId: data.roomId,
+                        userId: data.userId,
+                        hotelId: roomRef.hotelId,
+                        totalGuests: data.totalGuests,
+                        checkInDate: data.checkInDate,
+                        checkOutDate: data.checkOutDate,
+                        bookingAmount,
+                    },
                     tx
                 );
 
-                const idempotencyKey = await createIdempotencyKey(
-                    key,
-                    booking.id,
-                    tx
-                );
+                let idempotencyKeyRow;
+                try {
+                    idempotencyKeyRow = await createIdempotencyKey(
+                        idempotencyKey,
+                        data.userId,
+                        booking.id,
+                        tx
+                    );
+                } catch (err) {
+                    if (isUniqueConstraintViolation(err)) {
+                        throw new BadRequestError(
+                            'A booking request with this idempotency key is already being processed'
+                        );
+                    }
+                    throw err;
+                }
 
-                return { booking, idempotencyKey };
+                return { booking, idempotencyKeyRow };
             }
         );
+
         await bookingExpiryQueue.add(
             'expire-hold',
-            { bookingId: booking.id, correlationId: key },
+            { bookingId: booking.id, correlationId: idempotencyKey },
             { delay: HOLD_DURATION_MS }
         );
 
-        logger.info('Idempotency Key created', key);
+        logger.info('Idempotency Key created', idempotencyKey);
 
         return {
             booking,
-            idempotencyKey: idempotencyKey.key,
+            idempotencyKey: idempotencyKeyRow.key,
             holdExpiresAt: booking.holdExpiresAt,
         };
     } finally {
@@ -122,12 +154,9 @@ export async function createBookingService(data: CreateBookingInputDto) {
     }
 }
 
-// confirmBookingService stays exactly as before — confirmBookingWithLock's
-// expiry check is still a valid safety net even with the worker running,
-// e.g. if the worker hasn't picked up the job yet for some reason.
-export async function confirmBookingService(key: string) {
+export async function confirmBookingService(key: string, userId: number) {
     return await prisma.$transaction(async (tx) => {
-        const idempotencyKey = await getIdempotencyKeyWithLock(key, tx);
+        const idempotencyKey = await getIdempotencyKeyWithLock(key, userId, tx);
 
         if (idempotencyKey!.finalized) {
             logger.error('Idempotency Key is already finalized', key);
@@ -143,7 +172,7 @@ export async function confirmBookingService(key: string) {
 
         logger.info('Booking confirmed', booking);
 
-        await finalizeIdempotencyKey(idempotencyKey!.key, booking!.id, tx);
+        await finalizeIdempotencyKey(idempotencyKey!.key, userId, booking!.id, tx);
 
         logger.info('Idempotency Key confirmed', key);
 

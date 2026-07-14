@@ -12,10 +12,11 @@ import { idSchema } from '../../shared/utils/id.convert.js';
 export const createBookingController: RequestHandler = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
         const userId = req.userId;
+        const idempotencyKey = req.idempotencyKey;
         const booking = await createBookingService({
             ...req.body,
             userId,
-        });
+        }, idempotencyKey);
 
         sendSuccess(res, booking, 'Booking created successfully', 201);
     }
@@ -24,12 +25,13 @@ export const createBookingController: RequestHandler = asyncHandler(
 export const confirmBookingController: RequestHandler = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
         const { key } = req.params;
+        const userId = req.userId;
 
         if (!key) {
             throw new NotFoundError('Key is required');
         }
 
-        const booking = await confirmBookingService(key as string);
+        const booking = await confirmBookingService(key as string, userId);
 
         sendSuccess(res, booking, 'Booking confirmed successfully', 200);
     }

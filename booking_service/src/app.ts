@@ -1,7 +1,11 @@
 import { ServerConfig } from './config/index.js';
 import { connectDB, disconnectDB } from './infra/database/prisma.js';
 import { logger } from './infra/logger/index.js';
-import { bookingExpiryQueue, roomAvailabilityExtensionQueue, scheduleRoomAvailabilityExtension } from './infra/queue/queue.client.js';
+import {
+    bookingExpiryQueue,
+    roomAvailabilityExtensionQueue,
+    scheduleRoomAvailabilityExtension,
+} from './infra/queue/queue.client.js';
 import { bookingExpiryWorker } from './infra/queue/bookingExpire.worker.js';
 import { bookingRouter } from './modules/booking/booking.route.js';
 import { heathcheckRouter } from './modules/health/ping.route.js';

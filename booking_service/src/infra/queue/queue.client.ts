@@ -1,7 +1,10 @@
 import { Queue } from 'bullmq';
 import { getBullMQRedisClient } from '../redis/redis.js';
 
-import { BOOKING_EXPIRY_QUEUE, ROOM_AVAILABILITY_EXTENSION_QUEUE } from '../../shared/utils/constant.js';
+import {
+    BOOKING_EXPIRY_QUEUE,
+    ROOM_AVAILABILITY_EXTENSION_QUEUE,
+} from '../../shared/utils/constant.js';
 import type { BookingExpiryJobDto } from '../../shared/types/bookingExpiery.type.js';
 
 export const bookingExpiryQueue = new Queue<BookingExpiryJobDto>(

@@ -1,7 +1,7 @@
 import { validate as isValidUUID } from 'uuid';
-import type {
-    IdempotencyKey,
+import {
     Prisma,
+    type IdempotencyKey,
 } from '../../infra/database/generated/client.js';
 import { prisma } from '../../infra/database/prisma.js';
 import {
@@ -12,6 +12,14 @@ import {
 import { logger } from '../../infra/logger/index.js';
 import { HOLD_DURATION_MS } from '../../shared/utils/constant.js';
 import { promoteHoldToBooked } from '../room/roomRef.repository.js';
+
+
+export function isUniqueConstraintViolation(err: unknown): boolean {
+    return (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+    );
+}
 
 export async function createBookingRepo(
     bookingData: Omit<Prisma.BookingCreateInput, 'holdExpiresAt'>,
@@ -42,13 +50,14 @@ export async function getBookingById(bookingId: number) {
 
 export async function getIdempotencyKeyWithLock(
     key: string,
+    userId: number,
     tx: Prisma.TransactionClient
 ) {
     if (!isValidUUID(key)) {
         throw new BadRequestError('Invalid idempotency key format');
     }
     const idempotencykey: Array<IdempotencyKey> =
-        await tx.$queryRaw`SELECT * FROM "IdempotencyKey" WHERE "key" = ${key} FOR UPDATE`;
+        await tx.$queryRaw`SELECT * FROM "IdempotencyKey" WHERE "key" = ${key} AND "userId" = ${userId} FOR UPDATE`;
 
     logger.info('idempotency key with lock', idempotencykey);
 
@@ -57,6 +66,13 @@ export async function getIdempotencyKeyWithLock(
     }
 
     return idempotencykey[0];
+}
+
+export async function findIdempotencyKeyWithBooking(key: string, userId: number) {
+    return await prisma.idempotencyKey.findUnique({
+        where: { userId_key: { userId, key } },
+        include: { booking: true },
+    });
 }
 
 // STEP 1 — the "quick peek" check
@@ -148,12 +164,14 @@ export async function confirmBookingWithLock(
 
 export async function createIdempotencyKey(
     key: string,
+    userId: number,
     bookingId: number,
     tx: Prisma.TransactionClient = prisma
 ) {
     return await tx.idempotencyKey.create({
         data: {
             key,
+            userId,
             booking: { connect: { id: bookingId } },
         },
     });
@@ -161,18 +179,18 @@ export async function createIdempotencyKey(
 
 export async function finalizeIdempotencyKey(
     key: string,
+    userId: number,
     bookingId: number,
     tx: Prisma.TransactionClient
 ) {
     return await tx.idempotencyKey.update({
-        where: { key },
+        where: { userId_key: { userId, key } },
         data: {
             finalized: true,
             booking: { connect: { id: bookingId } },
         },
     });
 }
-
 // Atomically flips PENDING -> EXPIRED, but only if still expired at the
 // moment of the write — guards against a race with confirmBookingWithLock
 // (e.g. the delayed job firing right as the user confirms).

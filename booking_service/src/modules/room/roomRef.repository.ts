@@ -2,6 +2,7 @@ import type { Prisma } from '../../infra/database/generated/client.js';
 import { prisma } from '../../infra/database/prisma.js';
 import { BadRequestError } from '../../shared/errors/app.error.js';
 import type { RoomEventJobData } from '../../shared/types/roomEvent.type.js';
+import { calculateNights } from '../../shared/utils/dateRange.js';
 
 export async function upsertRoomRefFromEvent(
     event: RoomEventJobData,
@@ -51,9 +52,7 @@ export async function lockAndHoldRoomAvailability(
     checkOutDate: Date,
     tx: Prisma.TransactionClient
 ): Promise<void> {
-    const expectedNights = Math.round(
-        (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const expectedNights = calculateNights(checkInDate, checkOutDate);
 
     if (expectedNights <= 0) {
         throw new BadRequestError('checkOutDate must be after checkInDate');

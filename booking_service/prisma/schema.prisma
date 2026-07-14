@@ -47,12 +47,14 @@ enum BookingStatus {
 
 model IdempotencyKey {
   id        Int      @id @default(autoincrement())
-  key       String   @unique
+  key       String
+  userId    Int
   finalized Boolean  @default(false)
   booking   Booking? @relation(fields: [bookingId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   bookingId Int?
+  @@unique([userId,key])
 }
 
 // act as a index db table to scan faster the room availability for a date range

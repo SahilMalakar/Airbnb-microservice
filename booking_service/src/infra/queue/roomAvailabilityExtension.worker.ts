@@ -8,7 +8,9 @@ import { extendRoomAvailabilityForActiveRooms } from '../../modules/room/roomRef
 export const roomAvailabilityExtensionWorker = new Worker(
     ROOM_AVAILABILITY_EXTENSION_QUEUE,
     async (job: Job) => {
-        await extendRoomAvailabilityForActiveRooms(BookingConfig.BOOKING_WINDOW_DAYS);
+        await extendRoomAvailabilityForActiveRooms(
+            BookingConfig.BOOKING_WINDOW_DAYS
+        );
         logger.info('Room availability window extended', {
             jobId: job.id,
             windowDays: BookingConfig.BOOKING_WINDOW_DAYS,

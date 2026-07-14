@@ -11,12 +11,14 @@ import {
 import { createBookingSchema } from './booking.validation.js';
 import { idSchema } from '../../shared/utils/id.convert.js';
 import { extractUserId } from '../../shared/middlewares/extractUserId.js';
+import { extractIdempotencyKey } from '../../shared/middlewares/extractIdempotencyKey.js';
 
 const bookingRouter: Router = Router();
 
 bookingRouter.post(
     '/create',
     extractUserId,
+    extractIdempotencyKey,
     validateRequestBody(createBookingSchema),
     createBookingController
 );
