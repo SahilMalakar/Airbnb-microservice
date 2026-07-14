@@ -10,6 +10,11 @@ import {
     TTL,
 } from '../../shared/utils/constant.js';
 import { generateIdempotencyKey } from '../../shared/utils/generateIdempotency.js';
+import {
+    lockAndHoldRoomAvailability,
+    releaseBookedRoomAvailability,
+    releaseHeldRoomAvailability,
+} from '../room/roomRef.repository.js';
 import type { CreateBookingInputDto } from './booking.dto.js';
 import {
     cancelBookingWithLock,
@@ -20,9 +25,6 @@ import {
     findActiveHold,
     getIdempotencyKeyWithLock,
     getRoomRefById,
-    lockAndHoldRoomAvailability,
-    releaseBookedRoomAvailability,
-    releaseHeldRoomAvailability,
 } from './booking.repository.js';
 
 // applying prisma transaction with idempotency key to prevent a user from double booking

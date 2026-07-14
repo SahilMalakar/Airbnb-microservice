@@ -1,9 +1,9 @@
 import { Worker, Job } from 'bullmq';
 import { logger } from '../logger/index.js';
 import { getBullMQRedisClient } from '../redis/redis.js';
-import type { BookingExpiryJobDto } from '../../shared/types/bookingExpiery.type.js';
 import { BOOKING_EXPIRY_QUEUE } from '../../shared/utils/constant.js';
 import { processExpiryJob } from './handlers/expiry.handler.js';
+import type { BookingExpiryJobDto } from '../../shared/types/bookingExpiery.type.js';
 
 export const bookingExpiryWorker = new Worker<BookingExpiryJobDto>(
     BOOKING_EXPIRY_QUEUE,

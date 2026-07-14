@@ -59,14 +59,16 @@ roomEventsWorker.on('failed', (job, err) => {
         stack: err.stack,
     });
 
-
     if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
-        logger.error('ROOM_EVENT_PERMANENTLY_FAILED — manual reconciliation required', {
-            jobId: job.id,
-            eventType: job.data.eventType,
-            aggregateId: job.data.aggregateId,
-            roomId: job.data.payload?.roomId,
-        });
+        logger.error(
+            'ROOM_EVENT_PERMANENTLY_FAILED — manual reconciliation required',
+            {
+                jobId: job.id,
+                eventType: job.data.eventType,
+                aggregateId: job.data.aggregateId,
+                roomId: job.data.payload?.roomId,
+            }
+        );
     }
 });
 

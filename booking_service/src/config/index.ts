@@ -31,6 +31,10 @@ type RedisConfigType = {
     REDIS_URL: string;
 };
 
+type BookingConfigType = {
+    BOOKING_WINDOW_DAYS: number;
+};
+
 function required(key: string): string {
     const value = process.env[key];
     if (!value) throw new Error(`Missing required env variable: ${key}`);
@@ -63,4 +67,8 @@ export const RedisConfig: RedisConfigType = {
     REDIS_PORT: Number(required('REDIS_PORT')),
     REDIS_PASSWORD: process.env.REDIS_PASSWORD ?? '',
     REDIS_URL: required('REDIS_URL'),
+};
+
+export const BookingConfig: BookingConfigType = {
+    BOOKING_WINDOW_DAYS: Number(process.env.BOOKING_WINDOW_DAYS) || 365,
 };
