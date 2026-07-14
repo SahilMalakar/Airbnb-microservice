@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
 import { BadRequestError } from '../../shared/errors/app.error.js';
-import { sendSuccess } from '../../shared/utils/apiResponse.js';
+import { sendPaginated, sendSuccess } from '../../shared/utils/apiResponse.js';
 import { asyncHandler } from '../../shared/utils/asynHandler.js';
 import { idSchema } from '../../shared/utils/id.convert.js';
 import {
@@ -11,6 +11,7 @@ import {
     recoveryHotelService,
     updateHotelService,
 } from './hotel.service.js';
+import type { GetHotelsQueryDto } from './hotel.dto.js';
 
 export const createHotelController: RequestHandler = asyncHandler(
     async (req, res) => {
@@ -36,12 +37,23 @@ export const getHotelByIdController: RequestHandler = asyncHandler(
     }
 );
 
-// TODO: add pagination and filtering
 export const getAllHotelsController: RequestHandler = asyncHandler(
-    async (_req, res) => {
-        const hotels = await getAllHotelsService();
+    async (req, res) => {
+        const query = req.query as unknown as GetHotelsQueryDto;
 
-        sendSuccess(res, hotels, 'Hotels retrieved successfully', 200);
+        const { hotels, total } = await getAllHotelsService(query);
+
+        sendPaginated(
+            res,
+            hotels,
+            {
+                total,
+                page: query.page,
+                limit: query.limit,
+            },
+            'Hotels retrieved successfully',
+            200
+        );
     }
 );
 

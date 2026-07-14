@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import {
     validateParams,
+    validateQuery,
     validateRequestBody,
 } from '../../shared/utils/validator.utils.js';
-import { createHotelSchema, updateHotelSchema } from './hotel.validation.js';
+import {
+    createHotelSchema,
+    getHotelsQuerySchema,
+    updateHotelSchema,
+} from './hotel.validation.js';
 import {
     createHotelController,
     getHotelByIdController,
@@ -26,7 +31,11 @@ hotelRouter.post(
 
 hotelRouter.get('/hotel/:id', validateParams(idSchema), getHotelByIdController);
 
-hotelRouter.get('/hotels', getAllHotelsController);
+hotelRouter.get(
+    '/hotels',
+    validateQuery(getHotelsQuerySchema),
+    getAllHotelsController
+);
 
 hotelRouter.patch(
     '/hotel/:id',

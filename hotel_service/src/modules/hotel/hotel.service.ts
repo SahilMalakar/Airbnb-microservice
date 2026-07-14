@@ -4,7 +4,11 @@ import {
     NotFoundError,
     ForbiddenError,
 } from '../../shared/errors/app.error.js';
-import type { CreateHotelInputDto, UpdateHotelDto } from './hotel.dto.js';
+import type {
+    CreateHotelInputDto,
+    GetHotelsQueryDto,
+    UpdateHotelDto,
+} from './hotel.dto.js';
 import {
     createHotel,
     findActiveHotelById,
@@ -32,10 +36,10 @@ export const getHotelByIdService = async (hotelId: number) => {
     return hotel;
 };
 
-export const getAllHotelsService = async () => {
-    const hotels = await findAllActiveHotels();
+export const getAllHotelsService = async (query: GetHotelsQueryDto) => {
+    const { hotels, total } = await findAllActiveHotels(query);
     logger.info('hotels retrieved successfully', { count: hotels.length });
-    return hotels;
+    return { hotels, total };
 };
 
 export const updateHotelService = async (

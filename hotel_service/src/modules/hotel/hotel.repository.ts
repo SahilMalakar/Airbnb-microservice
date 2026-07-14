@@ -1,6 +1,6 @@
 import { prisma } from '../../infra/database/prisma.js';
 import type { Hotel, Prisma } from '../../infra/database/generated/client.js';
-import type { CreateHotelInputDto } from './hotel.dto.js';
+import type { CreateHotelInputDto, GetHotelsQueryDto } from './hotel.dto.js';
 
 export async function createHotel(
     data: CreateHotelInputDto,
@@ -27,20 +27,38 @@ export async function findActiveHotelById(
 }
 
 export async function findAllActiveHotels(
+    query: GetHotelsQueryDto,
     tx: Prisma.TransactionClient = prisma
 ) {
-    return tx.hotel.findMany({
-        where: { deletedAt: null },
-        select: {
-            id: true,
-            description: true,
-            address: true,
-            pincode: true,
-            cityId: true,
-            stateId: true,
-            hostId: true,
-        },
-    });
+    const { page, limit, cityId, stateId, hostId } = query;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.HotelWhereInput = {
+        deletedAt: null,
+        ...(cityId !== undefined && { cityId }),
+        ...(stateId !== undefined && { stateId }),
+        ...(hostId !== undefined && { hostId }),
+    };
+
+    const [hotels, total] = await Promise.all([
+        tx.hotel.findMany({
+            where,
+            select: {
+                id: true,
+                description: true,
+                address: true,
+                pincode: true,
+                cityId: true,
+                stateId: true,
+                hostId: true,
+            },
+            skip,
+            take: limit,
+        }),
+        tx.hotel.count({ where }),
+    ]);
+
+    return { hotels, total };
 }
 
 export async function findHotelByIdIncludingDeleted(
