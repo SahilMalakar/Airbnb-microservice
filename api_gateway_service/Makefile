@@ -6,6 +6,7 @@ export
 # quote-wrapped string, and pgx silently falls back to port 5432.
 DATABASE_URL := $(shell echo $(DATABASE_URL) | sed -e 's/^"//' -e 's/"$$//')
 PORT := $(shell echo $(PORT) | sed -e 's/^"//' -e 's/"$$//')
+REDIS_URL := $(shell echo $(REDIS_URL) | sed -e 's/^"//' -e 's/"$$//')
 
 # --- Migrations ---
 migrate-create:

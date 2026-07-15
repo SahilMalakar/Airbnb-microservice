@@ -8,7 +8,6 @@ export function getRedisClient(): Redis {
     if (!redisInstance) {
         redisInstance = new Redis(RedisConfig.REDIS_URL, {
             maxRetriesPerRequest: null,
-            keyPrefix: 'srv:notification:',
         });
 
         redisInstance.on('connect', () => {

@@ -1,0 +1,19 @@
+{
+  "name": "booking-system-monorepo",
+  "version": "1.0.0",
+  "description": "Root package manager for booking system microservices",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently --kill-others --names \"gateway,booking,hotel,notification\" --prefix-colors \"cyan,blue,green,magenta\" \"cd api_gateway_service && make run\" \"pnpm --filter booking_service dev\" \"pnpm --filter hotel_service dev\" \"pnpm --filter notification_service dev\"",
+    "start": "pnpm db:start && pnpm dev",
+    "db:start": "docker compose -f infra/docker-compose.redis.yml up -d && docker compose -f api_gateway_service/docker/docker-compose.dev.yml up -d && docker compose -f booking_service/docker/docker-compose.dev.yml up -d && docker compose -f hotel_service/docker/docker-compose.dev.yml up -d",
+    "db:stop": "docker compose -f infra/docker-compose.redis.yml down && docker compose -f api_gateway_service/docker/docker-compose.dev.yml down && docker compose -f booking_service/docker/docker-compose.dev.yml down && docker compose -f hotel_service/docker/docker-compose.dev.yml down",
+    "db:logs": "concurrently -n \"redis,gateway-db,booking-db,hotel-db\" -c \"magenta,cyan,blue,green\" \"docker compose -f infra/docker-compose.redis.yml logs -f\" \"docker compose -f api_gateway_service/docker/docker-compose.dev.yml logs -f\" \"docker compose -f booking_service/docker/docker-compose.dev.yml logs -f\" \"docker compose -f hotel_service/docker/docker-compose.dev.yml logs -f\"",
+    "db:reset": "docker compose -f infra/docker-compose.redis.yml down -v && docker compose -f api_gateway_service/docker/docker-compose.dev.yml down -v && docker compose -f booking_service/docker/docker-compose.dev.yml down -v && docker compose -f hotel_service/docker/docker-compose.dev.yml down -v && pnpm db:start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
+}

@@ -1,0 +1,6 @@
+packages:
+  - 'api_gateway_service'
+  - 'booking_service'
+  - 'hotel_service'
+  - 'notification_service'
+  - 'review_service'
