@@ -13,10 +13,13 @@ export const createBookingController: RequestHandler = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
         const userId = req.userId;
         const idempotencyKey = req.idempotencyKey;
-        const booking = await createBookingService({
-            ...req.body,
-            userId,
-        }, idempotencyKey);
+        const booking = await createBookingService(
+            {
+                ...req.body,
+                userId,
+            },
+            idempotencyKey
+        );
 
         sendSuccess(res, booking, 'Booking created successfully', 201);
     }

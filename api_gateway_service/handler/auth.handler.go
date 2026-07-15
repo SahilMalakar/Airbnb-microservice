@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/dto"
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/middleware"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/service"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/utils"
 )
@@ -123,11 +124,9 @@ func (u *UserController) Logout(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	if cookie, err := r.Cookie("refresh_token"); err == nil {
-		if err := u.UserService.LogoutService(r.Context(), cookie.Value); err != nil {
-			fmt.Println("Error revoking refresh token family on logout:", err)
-			// don't fail the logout over this — cookies still get cleared below
-		}
+	familyID, _ := r.Context().Value(middleware.CtxUserFamilyID).(string)
+	if err := u.UserService.LogoutService(r.Context(), familyID); err != nil {
+		fmt.Println("Error revoking session on logout:", err)
 	}
 	utils.ClearAuthCookies(w)
 	utils.SendSuccess(

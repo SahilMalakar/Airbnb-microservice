@@ -9,15 +9,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// ErrFamilyNotFound is returned when a refresh token family has no active
-// record in Redis — never issued, already revoked, or its TTL expired.
-// Callers should treat this the same as an invalid token.
 var ErrFamilyNotFound = errors.New("refresh token family not found")
 
-// ErrReuseDetected is returned when a presented jti no longer matches the
-// family's current active jti — the classic signal of a stolen refresh
-// token being replayed after the legitimate client already rotated past
-// it. The family is revoked as part of detecting this.
 var ErrReuseDetected = errors.New("refresh token resuse detected")
 
 // RefreshTokenStore tracks the single currently-valid jti per refresh
@@ -25,6 +18,8 @@ type RefreshTokenStore interface {
 	IssueFamily(ctx context.Context, familyID, jti string, ttl time.Duration) error
 	Rotate(ctx context.Context, familyID, jti, newJTI string, ttl time.Duration) error
 	Revoke(ctx context.Context, familyID string) error
+	DenylistFamily(ctx context.Context, familyID string, ttl time.Duration) error
+	IsFamilyDenylisted(ctx context.Context, familyID string) (bool, error)
 }
 
 type redisRefreshTokenStore struct {
@@ -36,7 +31,25 @@ func NewRefreshTokenStore(client *redis.Client) RefreshTokenStore {
 }
 
 func familyKey(familyID string) string {
-	return "refresh:family:" + familyID
+	return "srv:gateway:refresh:family:" + familyID
+}
+
+func denylistKey(familyID string) string {
+	return "srv:gateway:access:denylist:" + familyID
+}
+
+// DenylistFamily marks a session's access tokens as revoked for the
+// remaining lifetime of any token issued under that session.
+func (s *redisRefreshTokenStore) DenylistFamily(ctx context.Context, familyID string, ttl time.Duration) error {
+	return s.client.Set(ctx, denylistKey(familyID), "1", ttl).Err()
+}
+
+func (s *redisRefreshTokenStore) IsFamilyDenylisted(ctx context.Context, familyID string) (bool, error) {
+	exists, err := s.client.Exists(ctx, denylistKey(familyID)).Result()
+	if err != nil {
+		return false, err
+	}
+	return exists > 0, nil
 }
 
 func (s *redisRefreshTokenStore) IssueFamily(ctx context.Context, familyID, jti string, ttl time.Duration) error {

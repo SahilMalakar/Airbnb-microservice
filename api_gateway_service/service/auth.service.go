@@ -16,7 +16,7 @@ type UserService interface {
 	SignUpService(ctx context.Context, data *dto.SignUpRequestDTO) (*models.User, string, string, error)
 	LoginService(ctx context.Context, data *dto.LoginRequestDTO) (*models.User, string, string, error)
 	RefreshTokenService(ctx context.Context, refreshToken string) (string, string, error)
-	LogoutService(ctx context.Context, refreshToken string) error
+	LogoutService(ctx context.Context, familyID string) error
 	GetAllUsersService() ([]*models.User, error)
 	GetUserByIDService(id int64) (*models.User, error)
 }
@@ -110,12 +110,13 @@ func (u *UserServiceImpl) SignUpService(ctx context.Context, data *dto.SignUpReq
 		return nil, "", "", fmt.Errorf("failed to load user permissions")
 	}
 
-	accessToken, err := utils.CreateAccessToken(createdUser.ID, createdUser.Email, roles, permissions)
+	familyID := utils.NewRefreshFamilyID()
+	accessToken, err := utils.CreateAccessToken(createdUser.ID, createdUser.Email, familyID, roles, permissions)
+
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate access token")
 	}
 
-	familyID := utils.NewRefreshFamilyID()
 	refreshToken, err := u.issueRefreshToken(ctx, createdUser.ID, familyID)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate refresh token")
@@ -143,12 +144,13 @@ func (u *UserServiceImpl) LoginService(ctx context.Context, data *dto.LoginReque
 		return nil, "", "", fmt.Errorf("failed to load user permissions")
 	}
 
-	accessToken, err := utils.CreateAccessToken(existingUser.ID, existingUser.Email, roles, permissions)
+	familyID := utils.NewRefreshFamilyID()
+	accessToken, err := utils.CreateAccessToken(existingUser.ID, existingUser.Email, familyID, roles, permissions)
+
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate access token")
 	}
 
-	familyID := utils.NewRefreshFamilyID()
 	refreshToken, err := u.issueRefreshToken(ctx, existingUser.ID, familyID)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate refresh token")
@@ -183,12 +185,20 @@ func (u *UserServiceImpl) RefreshTokenService(ctx context.Context, refreshToken 
 	}
 
 	newRefreshToken, err := u.rotateRefreshToken(ctx, existingUser.ID, familyID, jti)
+
 	if err != nil {
-		if errors.Is(err, cache.ErrReuseDetected) || errors.Is(err, cache.ErrFamilyNotFound) {
+		if errors.Is(err, cache.ErrReuseDetected) {
 			fmt.Println("SECURITY: refresh token reuse detected, family revoked for user", userID)
+			if denylistErr := u.refreshTokenStore.DenylistFamily(ctx, familyID, utils.AccessTokenTTL); denylistErr != nil {
+				fmt.Println("failed to denylist access tokens after reuse detection:", denylistErr)
+			}
+			return "", "", fmt.Errorf("refresh token invalid, please login again")
+		}
+		if errors.Is(err, cache.ErrFamilyNotFound) {
 			return "", "", fmt.Errorf("refresh token invalid, please login again")
 		}
 		return "", "", fmt.Errorf("failed to rotate refresh token")
+
 	}
 
 	// re-fetch fresh roles/permissions — this is your staleness-correction point
@@ -201,7 +211,8 @@ func (u *UserServiceImpl) RefreshTokenService(ctx context.Context, refreshToken 
 		return "", "", fmt.Errorf("failed to load user permissions")
 	}
 
-	newAccessToken, err := utils.CreateAccessToken(existingUser.ID, existingUser.Email, roles, permissions)
+	newAccessToken, err := utils.CreateAccessToken(existingUser.ID, existingUser.Email, familyID, roles, permissions)
+
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate access token")
 	}
@@ -209,19 +220,14 @@ func (u *UserServiceImpl) RefreshTokenService(ctx context.Context, refreshToken 
 	return newAccessToken, newRefreshToken, nil
 }
 
-func (u *UserServiceImpl) LogoutService(ctx context.Context, refreshToken string) error {
-	if refreshToken == "" {
+func (u *UserServiceImpl) LogoutService(ctx context.Context, familyID string) error {
+	if familyID == "" {
 		return nil
 	}
-	claims, err := utils.VerifyRefreshToken(refreshToken)
-	if err != nil {
-		return nil
+	if err := u.refreshTokenStore.Revoke(ctx, familyID); err != nil {
+		return err
 	}
-	familyID, ok := claims["familyId"].(string)
-	if !ok {
-		return nil
-	}
-	return u.refreshTokenStore.Revoke(ctx, familyID)
+	return u.refreshTokenStore.DenylistFamily(ctx, familyID, utils.AccessTokenTTL)
 }
 
 func (u *UserServiceImpl) GetAllUsersService() ([]*models.User, error) {

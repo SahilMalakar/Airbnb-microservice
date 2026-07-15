@@ -13,7 +13,6 @@ import { logger } from '../../infra/logger/index.js';
 import { HOLD_DURATION_MS } from '../../shared/utils/constant.js';
 import { promoteHoldToBooked } from '../room/roomRef.repository.js';
 
-
 export function isUniqueConstraintViolation(err: unknown): boolean {
     return (
         err instanceof Prisma.PrismaClientKnownRequestError &&
@@ -68,7 +67,10 @@ export async function getIdempotencyKeyWithLock(
     return idempotencykey[0];
 }
 
-export async function findIdempotencyKeyWithBooking(key: string, userId: number) {
+export async function findIdempotencyKeyWithBooking(
+    key: string,
+    userId: number
+) {
     return await prisma.idempotencyKey.findUnique({
         where: { userId_key: { userId, key } },
         include: { booking: true },

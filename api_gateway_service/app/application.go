@@ -9,6 +9,7 @@ import (
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/config"
 	db "github.com/sahilmalakar/airbnb-microservice/api-gateway/db/repository"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/handler"
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/middleware"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/router"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/service"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/utils"
@@ -66,9 +67,8 @@ func (a *Application) RunServer() error {
 	defer redisClient.Close()
 
 	refreshTokenStore := cache.NewRefreshTokenStore(redisClient)
+	middleware.InitAuthDependencies(refreshTokenStore)
 
-	// Wire dependencies: DB → Repository → Service → Controller → Router
-	// Repositories that UserService depends on must be created first.
 	roleRepo := db.NewRoleRepository(conn)
 	permissionRepo := db.NewPermissionRepository(conn)
 	rolePermissionRepo := db.NewRolePermissionRepository(conn)

@@ -2,20 +2,35 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/cache"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/utils"
 )
 
 type ctxKey string
 
 const (
-	CtxUserID      ctxKey = "userID"
-	CtxUserEmail   ctxKey = "userEmail"
-	CtxUserRoles   ctxKey = "userRoles"
-	CtxUserPerms   ctxKey = "userPermissions"
+	CtxUserID       ctxKey = "userID"
+	CtxUserEmail    ctxKey = "userEmail"
+	CtxUserFamilyID ctxKey = "userFamilyID"
+	CtxUserRoles    ctxKey = "userRoles"
+	CtxUserPerms    ctxKey = "userPermissions"
 )
+
+var (
+	refreshStore     cache.RefreshTokenStore
+	refreshStoreOnce sync.Once
+)
+
+func InitAuthDependencies(store cache.RefreshTokenStore) {
+	refreshStoreOnce.Do(func() {
+		refreshStore = store
+	})
+}
 
 func AuthCookie(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -42,6 +57,22 @@ func AuthCookie(next http.Handler) http.Handler {
 			return
 		}
 
+		familyID, ok := claims["familyId"].(string)
+		if !ok {
+			utils.SendError(w, http.StatusUnauthorized, "Error on token verification", "invalid token claims")
+			return
+		}
+
+		if refreshStore != nil {
+			denylisted, err := refreshStore.IsFamilyDenylisted(r.Context(), familyID)
+			if err != nil {
+				fmt.Println("denylist check redis error, allowing request:", err)
+			} else if denylisted {
+				utils.SendError(w, http.StatusUnauthorized, "Error on token verification", "session revoked")
+				return
+			}
+		}
+
 		roles := toStringSlice(claims["roles"])
 		permissions := toStringSlice(claims["permissions"])
 		userID := int64(idFloat)
@@ -53,6 +84,7 @@ func AuthCookie(next http.Handler) http.Handler {
 
 		ctx := context.WithValue(r.Context(), CtxUserID, userID)
 		ctx = context.WithValue(ctx, CtxUserEmail, email)
+		ctx = context.WithValue(ctx, CtxUserFamilyID, familyID)
 		ctx = context.WithValue(ctx, CtxUserRoles, roles)
 		ctx = context.WithValue(ctx, CtxUserPerms, permissions)
 

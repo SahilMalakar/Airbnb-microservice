@@ -36,7 +36,10 @@ export async function createBookingService(
     data: CreateBookingInputDto,
     idempotencyKey: string
 ) {
-    const existing = await findIdempotencyKeyWithBooking(idempotencyKey, data.userId);
+    const existing = await findIdempotencyKeyWithBooking(
+        idempotencyKey,
+        data.userId
+    );
     if (existing?.booking) {
         logger.info('Idempotent replay — returning existing booking', {
             idempotencyKey,
@@ -97,7 +100,10 @@ export async function createBookingService(
                     tx
                 );
 
-                const nights = calculateNights(data.checkInDate, data.checkOutDate);
+                const nights = calculateNights(
+                    data.checkInDate,
+                    data.checkOutDate
+                );
                 const bookingAmount = roomRef.price * nights;
 
                 const booking = await createBookingRepo(
@@ -193,7 +199,12 @@ export async function confirmBookingService(key: string, userId: number) {
 
         logger.info('Booking confirmed', booking);
 
-        await finalizeIdempotencyKey(idempotencyKey!.key, userId, booking!.id, tx);
+        await finalizeIdempotencyKey(
+            idempotencyKey!.key,
+            userId,
+            booking!.id,
+            tx
+        );
 
         logger.info('Idempotency Key confirmed', key);
 
