@@ -7,11 +7,12 @@ export const extractUserId = (
     _res: Response,
     next: NextFunction
 ) => {
-    const headerUserId = req.headers['X-User-ID'];
-    const headersEmail = req.headers['X-User-Email'];
+    const headerUserId = req.headers['x-user-id'] || req.headers['X-User-ID'];
+    const headerEmail = req.headers['x-user-email'] || req.headers['X-User-Email'];
+    const headerName = req.headers['x-user-name'] || req.headers['X-User-Name'];
 
     logger.info(
-        `Recieved request with User ID: ${headerUserId} and Email: ${headersEmail}`
+        `Received request with User ID: ${headerUserId}, Email: ${headerEmail}, Name: ${headerName}`
     );
 
     const userId = Number(headerUserId);
@@ -22,5 +23,8 @@ export const extractUserId = (
     }
 
     req.userId = userId;
+    if (headerEmail) req.userEmail = headerEmail as string;
+    if (headerName) req.userName = headerName as string;
+
     next();
 };

@@ -19,11 +19,11 @@ type Router interface {
 
 func SetUpRouter(
 	redisClient *redis.Client,
-	UserRouter Router,
-	RoleRouter Router,
-	PermissionRouter Router,
-	RolePermissionRouter Router,
-	UserRoleRouter Router,
+	userRouter Router,
+	roleRouter Router,
+	permissionRouter Router,
+	rolePermissionRouter Router,
+	userRoleRouter Router,
 ) *chi.Mux {
 
 	router := chi.NewRouter()
@@ -47,15 +47,20 @@ func SetUpRouter(
 	// --- Unversioned ---
 	router.Get("/health", handler.HealthHandler)
 
+	// --- Internal ---
+	if ur, ok := userRouter.(*UserRouter); ok {
+		router.Get("/internal/users/{id}", ur.UserController.GetInternalUserByID)
+	}
+
 	// --- Versioned API ---
 	router.Route("/api/v1", func(r chi.Router) {
 
 		// Auth + RBAC management routes (signup, login, roles, permissions...)
-		UserRouter.Register(r)
-		RoleRouter.Register(r)
-		PermissionRouter.Register(r)
-		RolePermissionRouter.Register(r)
-		UserRoleRouter.Register(r)
+		userRouter.Register(r)
+		roleRouter.Register(r)
+		permissionRouter.Register(r)
+		rolePermissionRouter.Register(r)
+		userRoleRouter.Register(r)
 
 		// --- Hotel Service proxy ---
 		hotelProxy := utils.ProxyToService(config.ServicesConfig.HOTEL_SERVICE_URL, "/api/v1")

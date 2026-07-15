@@ -58,3 +58,11 @@ export const SmtpConfig: SmtpConfigType = {
     SMTP_PASS: required('SMTP_PASS'),
     MAIL_PROVIDER: required('MAIL_PROVIDER'),
 };
+
+type InternalServiceConfigType = {
+    KEY: string;
+};
+
+export const InternalServiceConfig: InternalServiceConfigType = {
+    KEY: required('INTERNAL_SERVICE_KEY'),
+};

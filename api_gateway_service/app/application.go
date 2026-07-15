@@ -77,7 +77,9 @@ func (a *Application) RunServer() error {
 
 	// UserService now needs roleRepo + userRoleRepo to resolve default role
 	// and embed roles/permissions into JWTs at login/signup/refresh.
-	userService := service.NewUserService(userRepo, userRoleRepo, roleRepo, refreshTokenStore)
+	otpStore := cache.NewOTPStore(redisClient)
+	notificationClient := service.NewNotificationClient()
+	userService := service.NewUserService(userRepo, userRoleRepo, roleRepo, refreshTokenStore, otpStore, notificationClient)
 	userController := handler.NewUserController(userService)
 	userRouter := router.NewUserRouter(userController)
 

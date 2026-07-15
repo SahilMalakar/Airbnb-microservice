@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"sync"
@@ -66,7 +65,7 @@ func AuthCookie(next http.Handler) http.Handler {
 		if refreshStore != nil {
 			denylisted, err := refreshStore.IsFamilyDenylisted(r.Context(), familyID)
 			if err != nil {
-				fmt.Println("denylist check redis error, allowing request:", err)
+				utils.Logger.Error("denylist check redis error, allowing request", "error", err, "familyID", familyID)
 			} else if denylisted {
 				utils.SendError(w, http.StatusUnauthorized, "Error on token verification", "session revoked")
 				return
@@ -76,11 +75,13 @@ func AuthCookie(next http.Handler) http.Handler {
 		roles := toStringSlice(claims["roles"])
 		permissions := toStringSlice(claims["permissions"])
 		userID := int64(idFloat)
+		name, _ := claims["name"].(string)
 
-		// still set headers for userID/email — useful if you proxy to
+		// still set headers for userID/email/name — useful if you proxy to
 		// downstream services that read headers, not Go context
 		r.Header.Set("X-User-ID", strconv.FormatInt(userID, 10))
 		r.Header.Set("X-User-Email", email)
+		r.Header.Set("X-User-Name", name)
 
 		ctx := context.WithValue(r.Context(), CtxUserID, userID)
 		ctx = context.WithValue(ctx, CtxUserEmail, email)

@@ -1,29 +1,66 @@
-interface BaseJobDto {
-    recipientId: string;
-    correlationId: string;
-}
+// shared/types/notification.type.ts
 
-export interface EmailJobDto extends BaseJobDto {
+export type NotificationType = 'EMAIL' | 'SMS' | 'PUSH';
+
+export type EmailTemplateId =
+    | 'welcome'
+    | 'otp-signup'
+    | 'otp-forgot-password'
+    | 'booking-confirmed'
+    | 'booking-failed'
+    | 'booking-cancelled';
+
+interface BaseEmailJob {
     notificationType: 'EMAIL';
     to: string;
     subject: string;
-    templateId: string;
-    params: Record<string, unknown>;
+    correlationId: string;
+    idempotencyKey: string;
 }
 
-export interface SmsJobDto extends BaseJobDto {
-    notificationType: 'SMS';
-    to: string; // phone number
-    templateId: string;
-    params: Record<string, unknown>;
+export interface WelcomeEmailJob extends BaseEmailJob {
+    templateId: 'welcome';
+    params: { name: string };
 }
 
-export interface PushJobDto extends BaseJobDto {
-    notificationType: 'PUSH';
-    deviceToken: string;
-    title: string;
-    body: string;
-    data?: Record<string, unknown>;
+export interface OtpSignupEmailJob extends BaseEmailJob {
+    templateId: 'otp-signup';
+    params: { name: string; otp: string; expiresInMinutes: number };
 }
 
-export type NotificationJobDto = EmailJobDto | SmsJobDto | PushJobDto;
+export interface OtpForgotPasswordEmailJob extends BaseEmailJob {
+    templateId: 'otp-forgot-password';
+    params: { name: string; otp: string; expiresInMinutes: number };
+}
+
+export interface BookingConfirmedEmailJob extends BaseEmailJob {
+    templateId: 'booking-confirmed';
+    params: {
+        guestName: string;
+        hotelName: string;
+        roomNo: string;
+        checkInDate: string;
+        checkOutDate: string;
+        bookingAmount: number;
+    };
+}
+
+export interface BookingFailedEmailJob extends BaseEmailJob {
+    templateId: 'booking-failed';
+    params: { guestName: string; reason: string };
+}
+
+export interface BookingCancelledEmailJob extends BaseEmailJob {
+    templateId: 'booking-cancelled';
+    params: { guestName: string; hotelName: string; checkInDate: string };
+}
+
+export type EmailJobDto =
+    | WelcomeEmailJob
+    | OtpSignupEmailJob
+    | OtpForgotPasswordEmailJob
+    | BookingConfirmedEmailJob
+    | BookingFailedEmailJob
+    | BookingCancelledEmailJob;
+
+export type NotificationJobDto = EmailJobDto; // SMS/PUSH stay unimplemented per scope

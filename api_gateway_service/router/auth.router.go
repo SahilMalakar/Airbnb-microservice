@@ -18,6 +18,10 @@ func NewUserRouter(userController *handler.UserController) Router {
 
 func (router *UserRouter) Register(r chi.Router) {
 	r.Post("/signup", middleware.DecodeAndValidate(router.UserController.SignUp))
+	r.Post("/verify-signup", middleware.DecodeAndValidate(router.UserController.VerifySignupOTP))
+	r.Post("/forgot-password", middleware.DecodeAndValidate(router.UserController.ForgotPassword))
+	r.Post("/reset-password", middleware.DecodeAndValidate(router.UserController.ResetPassword))
+	r.Post("/resend-otp", middleware.DecodeAndValidate(router.UserController.ResendOTP))
 	r.Post("/login", middleware.DecodeAndValidate(router.UserController.Login))
 	r.Post("/refresh", router.UserController.RefreshToken)
 	r.With(middleware.AuthCookie).Post("/logout", router.UserController.Logout)

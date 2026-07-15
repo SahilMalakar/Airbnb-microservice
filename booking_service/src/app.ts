@@ -13,6 +13,7 @@ import { app } from './server.js';
 import { errorMiddleware } from './shared/middlewares/globalError.js';
 import { roomEventsWorker } from './infra/queue/roomEvents.worker.js';
 import { roomAvailabilityExtensionWorker } from './infra/queue/roomAvailabilityExtension.worker.js';
+import { closeNotificationQueue } from './shared/utils/notification.publisher.js';
 
 app.use('/api/v1', heathcheckRouter);
 app.use('/api/v1/booking', bookingRouter);
@@ -48,6 +49,8 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
 
             await roomAvailabilityExtensionQueue.close();
             logger.info('Room availability extension queue closed');
+
+            await closeNotificationQueue();
 
             await disconnectDB();
 

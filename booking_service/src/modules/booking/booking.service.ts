@@ -4,6 +4,8 @@ import { logger } from '../../infra/logger/index.js';
 import { bookingExpiryQueue } from '../../infra/queue/queue.client.js';
 import { redlock } from '../../infra/redis/redis.js';
 import { BadRequestError } from '../../shared/errors/app.error.js';
+import { getCorrelationId } from '../../shared/utils/requestContext.js';
+import { sendBookingConfirmedNotification, sendBookingCancelledNotification, sendBookingFailedNotification, type UserContact } from '../../shared/utils/notification.publisher.js';
 import {
     CACHE_KEY,
     HOLD_DURATION_MS,
@@ -24,6 +26,7 @@ import {
     finalizeIdempotencyKey,
     findActiveHold,
     findIdempotencyKeyWithBooking,
+    getBookingById,
     getIdempotencyKeyWithLock,
     getRoomRefById,
     isUniqueConstraintViolation,
@@ -160,60 +163,101 @@ export async function createBookingService(
     }
 }
 
-export async function confirmBookingService(key: string, userId: number) {
-    return await prisma.$transaction(async (tx) => {
-        const idempotencyKey = await getIdempotencyKeyWithLock(key, userId, tx);
+export async function confirmBookingService(
+    key: string,
+    userId: number,
+    userContact?: UserContact
+) {
+    const correlationId = getCorrelationId();
 
-        if (idempotencyKey!.finalized) {
-            logger.error('Idempotency Key is already finalized', key);
-            throw new BadRequestError('Idempotency Key is already finalized');
-        }
+    try {
+        const booking = await prisma.$transaction(async (tx) => {
+            const idempotencyKey = await getIdempotencyKeyWithLock(key, userId, tx);
 
-        // Guard: don't let a still-PENDING hold be confirmed if the room
-        // it points at has since been deactivated (host deleted the room,
-        // or cascade-deleted via hotel deletion). RoomRef.isActive is kept
-        // current by the event-driven sync from Hotel Service's outbox.
-        const pendingBooking = await tx.booking.findUnique({
-            where: { id: idempotencyKey!.bookingId! },
+            if (idempotencyKey!.finalized) {
+                logger.error('Idempotency Key is already finalized', key);
+                throw new BadRequestError('Idempotency Key is already finalized');
+            }
+
+            const pendingBooking = await tx.booking.findUnique({
+                where: { id: idempotencyKey!.bookingId! },
+            });
+
+            if (pendingBooking) {
+                const roomRef = await getRoomRefById(pendingBooking.roomId, tx);
+                if (!roomRef || !roomRef.isActive) {
+                    logger.warn('confirmation blocked — room no longer active', {
+                        bookingId: pendingBooking.id,
+                        roomId: pendingBooking.roomId,
+                    });
+                    throw new BadRequestError(
+                        'This room is no longer available and cannot be confirmed'
+                    );
+                }
+            }
+
+            const booking = await confirmBookingWithLock(
+                idempotencyKey!.bookingId!,
+                tx
+            );
+
+            logger.info('Booking confirmed', booking);
+
+            await finalizeIdempotencyKey(
+                idempotencyKey!.key,
+                userId,
+                booking!.id,
+                tx
+            );
+
+            logger.info('Idempotency Key confirmed', key);
+
+            return booking;
         });
 
-        if (pendingBooking) {
-            const roomRef = await getRoomRefById(pendingBooking.roomId, tx);
-            if (!roomRef || !roomRef.isActive) {
-                logger.warn('confirmation blocked — room no longer active', {
-                    bookingId: pendingBooking.id,
-                    roomId: pendingBooking.roomId,
+        setImmediate(() => {
+            sendBookingConfirmedNotification(booking, correlationId, userContact);
+        });
+
+        return booking;
+    } catch (err) {
+        if (
+            err instanceof BadRequestError &&
+            err.message === 'Booking hold has expired, please book again'
+        ) {
+            const idempotencyRecord = await findIdempotencyKeyWithBooking(key, userId);
+            const expiredBooking = idempotencyRecord?.booking ?? (
+                idempotencyRecord?.bookingId
+                    ? await getBookingById(idempotencyRecord.bookingId)
+                    : null
+            );
+
+            if (
+                expiredBooking &&
+                expiredBooking.status === 'PENDING' &&
+                expiredBooking.holdExpiresAt <= new Date()
+            ) {
+                setImmediate(() => {
+                    sendBookingFailedNotification(
+                        expiredBooking,
+                        'Booking hold has expired, please book again',
+                        correlationId,
+                        userContact
+                    );
                 });
-                throw new BadRequestError(
-                    'This room is no longer available and cannot be confirmed'
-                );
             }
         }
 
-        // payment call goes here — see note below
-
-        const booking = await confirmBookingWithLock(
-            idempotencyKey!.bookingId!,
-            tx
-        );
-
-        logger.info('Booking confirmed', booking);
-
-        await finalizeIdempotencyKey(
-            idempotencyKey!.key,
-            userId,
-            booking!.id,
-            tx
-        );
-
-        logger.info('Idempotency Key confirmed', key);
-
-        return booking;
-    });
+        throw err;
+    }
 }
 
-export async function cancelBookingService(bookingId: number, userId: number) {
-    return await prisma.$transaction(async (tx) => {
+export async function cancelBookingService(
+    bookingId: number,
+    userId: number,
+    userContact?: UserContact
+) {
+    const booking = await prisma.$transaction(async (tx) => {
         const result = await cancelBookingWithLock(bookingId, userId, tx);
 
         if (!result || !result.booking) {
@@ -255,4 +299,11 @@ export async function cancelBookingService(bookingId: number, userId: number) {
         logger.info('Booking cancelled successfully', booking.id);
         return booking;
     });
+
+    const correlationId = getCorrelationId();
+    setImmediate(() => {
+        sendBookingCancelledNotification(booking, correlationId, userContact);
+    });
+
+    return booking;
 }

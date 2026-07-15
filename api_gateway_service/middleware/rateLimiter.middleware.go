@@ -39,8 +39,7 @@ func RedisRateLimiter(client *redis.Client, limit int, window time.Duration) fun
 				int(window.Seconds()),
 			).Int()
 			if err != nil {
-				// Fail open: a Redis blip shouldn't take the gateway down.
-				fmt.Println("rate limiter redis error, allowing request:", err)
+				utils.Logger.Error("rate limiter redis error, allowing request", "error", err)
 				next.ServeHTTP(w, r)
 				return
 			}

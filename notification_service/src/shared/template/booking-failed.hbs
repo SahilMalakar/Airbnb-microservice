@@ -1,0 +1,106 @@
+<html lang='en'>
+    <head>
+        <meta charset='UTF-8' />
+        <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+        <title>Booking Failed ⚠️</title>
+    </head>
+    <body
+        style='margin:0; padding:0; background-color:#f4f5f7; font-family:Helvetica, Arial, sans-serif;'
+    >
+
+        <table
+            role='presentation'
+            width='100%'
+            cellpadding='0'
+            cellspacing='0'
+            style='background-color:#f4f5f7; padding:40px 0;'
+        >
+            <tr>
+                <td align='center'>
+
+                    <table
+                        role='presentation'
+                        width='600'
+                        cellpadding='0'
+                        cellspacing='0'
+                        style='background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.06);'
+                    >
+
+                        <!-- Header -->
+                        <tr>
+                            <td
+                                style='background-color:#ef4444; padding:32px 40px; text-align:center;'
+                            >
+                                <h1
+                                    style='margin:0; color:#ffffff; font-size:24px; font-weight:600;'
+                                >
+                                    Booking Hold Expired/Failed ⚠️
+                                </h1>
+                            </td>
+                        </tr>
+
+                        <!-- Body -->
+                        <tr>
+                            <td style='padding:40px;'>
+                                <p
+                                    style='margin:0 0 16px; font-size:16px; line-height:1.6; color:#333333;'
+                                >
+                                    Hi {{guestName}},
+                                </p>
+
+                                <p
+                                    style='margin:0 0 16px; font-size:16px; line-height:1.6; color:#333333;'
+                                >
+                                    We regret to inform you that your booking request could not be completed.
+                                </p>
+
+                                <table
+                                    role='presentation'
+                                    width='100%'
+                                    cellpadding='12'
+                                    cellspacing='0'
+                                    style='margin:20px 0; background-color:#fef2f2; border:1px solid #fee2e2; border-radius:6px;'
+                                >
+                                    <tr>
+                                        <td style='color:#b91c1c; font-size:15px; font-weight:600;'>
+                                            Reason: {{reason}}
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p
+                                    style='margin:0 0 24px; font-size:16px; line-height:1.6; color:#333333;'
+                                >
+                                    This usually happens because the temporary hold on the room expired before payment was confirmed. Any temporary authorization or hold on your card will be automatically released.
+                                </p>
+
+                                <p
+                                    style='margin:0; font-size:16px; line-height:1.6; color:#333333;'
+                                >
+                                    Please feel free to search for other dates or properties and submit a new booking request.
+                                </p>
+                            </td>
+                        </tr>
+
+                        <!-- Footer -->
+                        <tr>
+                            <td
+                                style='padding:24px 40px; background-color:#f9fafb; text-align:center; border-top:1px solid #eeeeee;'
+                            >
+                                <p
+                                    style='margin:0; font-size:14px; color:#888888;'
+                                >
+                                    Best regards,<br />
+                                    The Airbnb Team
+                                </p>
+                            </td>
+                        </tr>
+
+                    </table>
+
+                </td>
+            </tr>
+        </table>
+
+    </body>
+</html>

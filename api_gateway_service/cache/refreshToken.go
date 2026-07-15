@@ -16,8 +16,10 @@ var ErrReuseDetected = errors.New("refresh token resuse detected")
 // RefreshTokenStore tracks the single currently-valid jti per refresh
 type RefreshTokenStore interface {
 	IssueFamily(ctx context.Context, familyID, jti string, ttl time.Duration) error
+	TrackUserFamily(ctx context.Context, userID int64, familyID string, ttl time.Duration) error
 	Rotate(ctx context.Context, familyID, jti, newJTI string, ttl time.Duration) error
 	Revoke(ctx context.Context, familyID string) error
+	RevokeAllUserFamilies(ctx context.Context, userID int64, accessTTL time.Duration) error
 	DenylistFamily(ctx context.Context, familyID string, ttl time.Duration) error
 	IsFamilyDenylisted(ctx context.Context, familyID string) (bool, error)
 }
@@ -95,4 +97,30 @@ func (s *redisRefreshTokenStore) Rotate(ctx context.Context, familyID, jti, newJ
 
 func (s *redisRefreshTokenStore) Revoke(ctx context.Context, familyID string) error {
 	return s.client.Del(ctx, familyKey(familyID)).Err()
+}
+
+func userFamiliesKey(userID int64) string {
+	return fmt.Sprintf("srv:gateway:refresh:user:%d", userID)
+}
+
+func (s *redisRefreshTokenStore) TrackUserFamily(ctx context.Context, userID int64, familyID string, ttl time.Duration) error {
+	key := userFamiliesKey(userID)
+	pipe := s.client.Pipeline()
+	pipe.SAdd(ctx, key, familyID)
+	pipe.Expire(ctx, key, ttl)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (s *redisRefreshTokenStore) RevokeAllUserFamilies(ctx context.Context, userID int64, accessTTL time.Duration) error {
+	key := userFamiliesKey(userID)
+	families, err := s.client.SMembers(ctx, key).Result()
+	if err != nil {
+		return fmt.Errorf("listing user refresh families: %w", err)
+	}
+	for _, familyID := range families {
+		_ = s.Revoke(ctx, familyID)
+		_ = s.DenylistFamily(ctx, familyID, accessTTL)
+	}
+	return s.client.Del(ctx, key).Err()
 }

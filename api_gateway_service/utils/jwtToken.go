@@ -32,10 +32,11 @@ const (
 	RefreshTokenTTL = 3 * 24 * time.Hour
 )
 
-func CreateAccessToken(id int64, email string, familyID string, roles []string, permissions []string) (string, error) {
+func CreateAccessToken(id int64, email string, name string, familyID string, roles []string, permissions []string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":          id,
 		"email":       email,
+		"name":        name,
 		"familyId":    familyID,
 		"roles":       roles,
 		"permissions": permissions,
