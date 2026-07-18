@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/infra/database/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model UserProjection {
+  id               Int      @id
+  name             String
+  email            String
+  aggregateVersion Int
+  syncedAt         DateTime @updatedAt
+}
+model HotelProjection {
+  id               Int      @id
+  name             String
+  isActive         Boolean
+  aggregateVersion Int
+  syncedAt         DateTime @updatedAt
+}
+model RoomProjection {
+  id               Int      @id
+  hotelId          Int
+  roomNo           String
+  price            Int
+  maxOccupancy     Int
+  isActive         Boolean
+  aggregateVersion Int
+  syncedAt         DateTime @updatedAt
+  @@index([hotelId])
+}
+model ProcessedEvent {
+  eventId       String   @id
+  eventType     String
+  aggregateType String
+  aggregateId   String
+  processedAt   DateTime @default(now())
+}
+model EmailDelivery {
+  id           Int       @id @default(autoincrement())
+  eventId      String?
+  templateId   String
+  recipient    String
+  subject      String
+  status       String    // e.g. "QUEUED" | "SENT" | "FAILED"
+  sentAt       DateTime?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+}

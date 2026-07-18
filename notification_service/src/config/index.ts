@@ -28,6 +28,10 @@ type SmtpConfigType = {
     MAIL_PROVIDER: string;
 };
 
+type DBConfigType = {
+    DATABASE_URL: string;
+};
+
 function required(key: string): string {
     const value = process.env[key];
     if (!value) throw new Error(`Missing required env variable: ${key}`);
@@ -65,4 +69,8 @@ type InternalServiceConfigType = {
 
 export const InternalServiceConfig: InternalServiceConfigType = {
     KEY: required('INTERNAL_SERVICE_KEY'),
+};
+
+export const DBConfig: DBConfigType = {
+    DATABASE_URL: required('DATABASE_URL'),
 };

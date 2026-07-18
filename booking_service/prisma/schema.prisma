@@ -13,7 +13,7 @@ datasource db {
 }
 
 model Booking {
-  id            Int           @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   roomId        Int
   userId        Int
@@ -22,15 +22,16 @@ model Booking {
   bookingAmount Int
   status        BookingStatus @default(PENDING)
 
-  checkInDate   DateTime      @db.Date
-  checkOutDate  DateTime      @db.Date
+  checkInDate  DateTime @db.Date
+  checkOutDate DateTime @db.Date
 
   holdExpiresAt DateTime // when this PENDING hold dies if not confirmed
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  version   Int      @default(1)
 
-  idempotencyKeys  IdempotencyKey[]
+  idempotencyKeys IdempotencyKey[]
 
   @@index([roomId])
   @@index([userId])
@@ -54,16 +55,17 @@ model IdempotencyKey {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   bookingId Int?
-  @@unique([userId,key])
+
+  @@unique([userId, key])
 }
 
 // act as a index db table to scan faster the room availability for a date range
 model RoomAvailability {
-  id     Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  roomId Int 
+  roomId Int
 
-  date   DateTime @db.Date
+  date DateTime @db.Date
 
   totalCount  Int @default(1) // total available space/bed count in single room / hostel / apartment
   bookedCount Int @default(0) // increases only if payment/booking confirmed
@@ -80,11 +82,27 @@ model RoomAvailability {
 model RoomRef {
   roomId       Int      @id // same value as Hotel service's Room.id
   hotelId      Int // denormalized, useful for queries/reporting
-  isActive     Boolean   @default(true) // false once RoomDeleted event received
+  isActive     Boolean  @default(true) // false once RoomDeleted event received
   price        Int // denormalized snapshot, may drift — not source of truth
   maxOccupancy Int      @default(1)
   syncedAt     DateTime @updatedAt
 
   @@index([hotelId])
   @@index([isActive])
+}
+
+model Outbox {
+  id               Int       @id @default(autoincrement())
+  eventId          String    @default(uuid())
+  eventType        String
+  aggregateType    String    // (e.g. "Booking")
+  aggregateId      Int
+  aggregateVersion Int
+  schemaVersion    Int       @default(1)
+  payload          Json
+  correlationId    String?
+  occurredAt       DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  processedAt      DateTime?
+  @@index([processedAt])
 }

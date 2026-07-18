@@ -11,6 +11,7 @@
         "delete": "rm -rf node_modules && rm -rf dist",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
+        "generate": "pnpm dlx prisma generate",
         "db:start": "docker compose -f docker/docker-compose.dev.yml up -d",
         "db:stop": "docker compose -f docker/docker-compose.dev.yml down",
         "db:logs": "docker compose -f docker/docker-compose.dev.yml logs -f",
@@ -21,12 +22,15 @@
     "license": "ISC",
     "packageManager": "pnpm@11.3.0+sha512.2c403d6594527287672b1f7056343a1f7c3634036a67ffabfcc2b3d7595d843768f8787148d1b57cf7956c90606bbd192857c363af19e96d2d0ec9ec5741d215",
     "dependencies": {
+        "@prisma/adapter-pg": "^7.8.0",
+        "@prisma/client": "^7.8.0",
         "bullmq": "^5.79.1",
         "dotenv": "^17.4.2",
         "express": "^5.2.1",
         "handlebars": "^4.7.9",
         "ioredis": "^5.11.1",
         "nodemailer": "^9.0.1",
+        "pg": "^8.22.0",
         "uuid": "^14.0.0",
         "winston": "^3.19.0",
         "winston-daily-rotate-file": "^5.0.0",
@@ -38,6 +42,7 @@
         "@types/nodemailer": "^8.0.1",
         "@types/pg": "^8.20.0",
         "prettier": "3.8.3",
+        "prisma": "^7.8.0",
         "tsx": "^4.22.3",
         "typescript": "^6.0.3"
     }

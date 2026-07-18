@@ -27,6 +27,7 @@ model Hotel {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+  version   Int       @default(1)
 
   @@index([cityId])
   @@index([stateId])
@@ -86,33 +87,37 @@ model Room {
 
   roomCategoryId Int
   roomCategory   RoomCategory @relation(fields: [roomCategoryId], references: [id])
-  maxOccupancy   Int @default(1)
+  maxOccupancy   Int          @default(1)
 
   // no bookingId, no date_of_availability — booking history lives in Booking service
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+  version   Int       @default(1)
 
+  @@unique([hotelId, roomNo])
   @@index([hotelId])
   @@index([roomCategoryId])
-  @@unique([hotelId, roomNo])
 }
-
 
 // Outbox pattern: domain writes (Room create/update/delete) insert a row
 // here in the SAME transaction as the domain change, guaranteeing no
 // dual-write loss between the DB commit and event publication.
 // A separate relay process polls unprocessed rows and enqueues them into BullMQ.
 model Outbox {
-  id          Int       @id @default(autoincrement())
-  eventType   String // e.g. "RoomCreated" | "RoomUpdated" | "RoomDeleted"
-  aggregateId Int // the roomId this event is about — useful for debugging/replay
-  payload     Json // the actual event data consumers need
-
-  createdAt   DateTime  @default(now())
-  processedAt DateTime? // null = unprocessed; relay's polling target
-
+  id               Int       @id @default(autoincrement())
+  eventId          String    @default(uuid())
+  eventType        String
+  aggregateType    String // (e.g. "Hotel" or "Room")
+  aggregateId      Int
+  aggregateVersion Int // (atomic version at mutation time)
+  schemaVersion    Int       @default(1)
+  payload          Json
+  correlationId    String?
+  occurredAt       DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  processedAt      DateTime?
   @@index([processedAt])
 }
 

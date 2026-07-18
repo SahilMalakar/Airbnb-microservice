@@ -12,12 +12,6 @@ export const notificationWorker = new Worker<NotificationJobDto>(
             case 'EMAIL':
                 await processEmailJob(job);
                 break;
-            case 'SMS':
-                logger.warn(`SMS handler not implemented yet [job ${job.id}]`);
-                break;
-            case 'PUSH':
-                logger.warn(`PUSH handler not implemented yet [job ${job.id}]`);
-                break;
             default:
                 logger.warn(`Unknown notification type for job ${job.id}`);
         }

@@ -1,7 +1,11 @@
 import { Queue } from 'bullmq';
 import { getBullMQRedisClient } from '../../infra/redis/redis.js';
 import { logger } from '../../infra/logger/index.js';
-import { fetchUserById, fetchRoomById, fetchHotelById } from './metadataClient.js';
+import {
+    fetchUserById,
+    fetchRoomById,
+    fetchHotelById,
+} from './metadataClient.js';
 import { NOTIFICATION_QUEUE } from './constant.js';
 
 export type UserContact = { name: string; email: string };
@@ -47,20 +51,26 @@ export async function sendBookingConfirmedNotification(
         ]);
 
         if (!user || !room) {
-            logger.warn('Skipping booking-confirmed notification due to missing user/room metadata', {
-                bookingId: booking.id,
-                userId: booking.userId,
-                roomId: booking.roomId,
-            });
+            logger.warn(
+                'Skipping booking-confirmed notification due to missing user/room metadata',
+                {
+                    bookingId: booking.id,
+                    userId: booking.userId,
+                    roomId: booking.roomId,
+                }
+            );
             return;
         }
 
         const hotel = await fetchHotelById(room.hotelId);
         if (!hotel) {
-            logger.warn('Skipping booking-confirmed notification due to missing hotel metadata', {
-                bookingId: booking.id,
-                hotelId: room.hotelId,
-            });
+            logger.warn(
+                'Skipping booking-confirmed notification due to missing hotel metadata',
+                {
+                    bookingId: booking.id,
+                    hotelId: room.hotelId,
+                }
+            );
             return;
         }
 
@@ -76,7 +86,9 @@ export async function sendBookingConfirmedNotification(
                 hotelName: hotel.name,
                 roomNo: room.roomNo,
                 checkInDate: new Date(booking.checkInDate).toLocaleDateString(),
-                checkOutDate: new Date(booking.checkOutDate).toLocaleDateString(),
+                checkOutDate: new Date(
+                    booking.checkOutDate
+                ).toLocaleDateString(),
                 bookingAmount: booking.bookingAmount,
             },
             correlationId,
@@ -84,9 +96,13 @@ export async function sendBookingConfirmedNotification(
         };
 
         await queue.add('EMAIL', payload, { jobId: idempotencyKey });
-        logger.info(`Enqueued booking-confirmed notification for booking ${booking.id} [correlationId: ${correlationId}]`);
+        logger.info(
+            `Enqueued booking-confirmed notification for booking ${booking.id} [correlationId: ${correlationId}]`
+        );
     } catch (err) {
-        logger.error(`Failed to enqueue booking-confirmed notification: ${(err as Error).message}`);
+        logger.error(
+            `Failed to enqueue booking-confirmed notification: ${(err as Error).message}`
+        );
     }
 }
 
@@ -102,20 +118,26 @@ export async function sendBookingCancelledNotification(
         ]);
 
         if (!user || !room) {
-            logger.warn('Skipping booking-cancelled notification due to missing user/room metadata', {
-                bookingId: booking.id,
-                userId: booking.userId,
-                roomId: booking.roomId,
-            });
+            logger.warn(
+                'Skipping booking-cancelled notification due to missing user/room metadata',
+                {
+                    bookingId: booking.id,
+                    userId: booking.userId,
+                    roomId: booking.roomId,
+                }
+            );
             return;
         }
 
         const hotel = await fetchHotelById(room.hotelId);
         if (!hotel) {
-            logger.warn('Skipping booking-cancelled notification due to missing hotel metadata', {
-                bookingId: booking.id,
-                hotelId: room.hotelId,
-            });
+            logger.warn(
+                'Skipping booking-cancelled notification due to missing hotel metadata',
+                {
+                    bookingId: booking.id,
+                    hotelId: room.hotelId,
+                }
+            );
             return;
         }
 
@@ -136,9 +158,13 @@ export async function sendBookingCancelledNotification(
         };
 
         await queue.add('EMAIL', payload, { jobId: idempotencyKey });
-        logger.info(`Enqueued booking-cancelled notification for booking ${booking.id} [correlationId: ${correlationId}]`);
+        logger.info(
+            `Enqueued booking-cancelled notification for booking ${booking.id} [correlationId: ${correlationId}]`
+        );
     } catch (err) {
-        logger.error(`Failed to enqueue booking-cancelled notification: ${(err as Error).message}`);
+        logger.error(
+            `Failed to enqueue booking-cancelled notification: ${(err as Error).message}`
+        );
     }
 }
 
@@ -151,10 +177,13 @@ export async function sendBookingFailedNotification(
     try {
         const user = await resolveUser(booking.userId, userOverride);
         if (!user) {
-            logger.warn('Skipping booking-failed notification due to missing user metadata', {
-                bookingId: booking.id,
-                userId: booking.userId,
-            });
+            logger.warn(
+                'Skipping booking-failed notification due to missing user metadata',
+                {
+                    bookingId: booking.id,
+                    userId: booking.userId,
+                }
+            );
             return;
         }
 
@@ -174,8 +203,12 @@ export async function sendBookingFailedNotification(
         };
 
         await queue.add('EMAIL', payload, { jobId: idempotencyKey });
-        logger.info(`Enqueued booking-failed notification for booking ${booking.id} [correlationId: ${correlationId}]`);
+        logger.info(
+            `Enqueued booking-failed notification for booking ${booking.id} [correlationId: ${correlationId}]`
+        );
     } catch (err) {
-        logger.error(`Failed to enqueue booking-failed notification: ${(err as Error).message}`);
+        logger.error(
+            `Failed to enqueue booking-failed notification: ${(err as Error).message}`
+        );
     }
 }

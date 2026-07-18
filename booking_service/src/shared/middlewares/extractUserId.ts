@@ -8,7 +8,8 @@ export const extractUserId = (
     next: NextFunction
 ) => {
     const headerUserId = req.headers['x-user-id'] || req.headers['X-User-ID'];
-    const headerEmail = req.headers['x-user-email'] || req.headers['X-User-Email'];
+    const headerEmail =
+        req.headers['x-user-email'] || req.headers['X-User-Email'];
     const headerName = req.headers['x-user-name'] || req.headers['X-User-Name'];
 
     logger.info(

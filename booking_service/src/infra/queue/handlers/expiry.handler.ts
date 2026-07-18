@@ -1,12 +1,8 @@
 import type { Job } from 'bullmq';
 import { prisma } from '../../database/prisma.js';
 import { logger } from '../../logger/index.js';
-import {
-    expireBookingWithLock,
-} from '../../../modules/booking/booking.repository.js';
-import {
-    releaseHeldRoomAvailability,
-} from '../../../modules/room/roomRef.repository.js';
+import { expireBookingWithLock } from '../../../modules/booking/booking.repository.js';
+import { releaseHeldRoomAvailability } from '../../../modules/room/roomRef.repository.js';
 import type { BookingExpiryJobDto } from '../../../shared/types/bookingExpiery.type.js';
 import { sendBookingFailedNotification } from '../../../shared/utils/notification.publisher.js';
 

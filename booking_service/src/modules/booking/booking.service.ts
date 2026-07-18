@@ -5,7 +5,12 @@ import { bookingExpiryQueue } from '../../infra/queue/queue.client.js';
 import { redlock } from '../../infra/redis/redis.js';
 import { BadRequestError } from '../../shared/errors/app.error.js';
 import { getCorrelationId } from '../../shared/utils/requestContext.js';
-import { sendBookingConfirmedNotification, sendBookingCancelledNotification, sendBookingFailedNotification, type UserContact } from '../../shared/utils/notification.publisher.js';
+import {
+    sendBookingConfirmedNotification,
+    sendBookingCancelledNotification,
+    sendBookingFailedNotification,
+    type UserContact,
+} from '../../shared/utils/notification.publisher.js';
 import {
     CACHE_KEY,
     HOLD_DURATION_MS,
@@ -172,11 +177,17 @@ export async function confirmBookingService(
 
     try {
         const booking = await prisma.$transaction(async (tx) => {
-            const idempotencyKey = await getIdempotencyKeyWithLock(key, userId, tx);
+            const idempotencyKey = await getIdempotencyKeyWithLock(
+                key,
+                userId,
+                tx
+            );
 
             if (idempotencyKey!.finalized) {
                 logger.error('Idempotency Key is already finalized', key);
-                throw new BadRequestError('Idempotency Key is already finalized');
+                throw new BadRequestError(
+                    'Idempotency Key is already finalized'
+                );
             }
 
             const pendingBooking = await tx.booking.findUnique({
@@ -186,10 +197,13 @@ export async function confirmBookingService(
             if (pendingBooking) {
                 const roomRef = await getRoomRefById(pendingBooking.roomId, tx);
                 if (!roomRef || !roomRef.isActive) {
-                    logger.warn('confirmation blocked — room no longer active', {
-                        bookingId: pendingBooking.id,
-                        roomId: pendingBooking.roomId,
-                    });
+                    logger.warn(
+                        'confirmation blocked — room no longer active',
+                        {
+                            bookingId: pendingBooking.id,
+                            roomId: pendingBooking.roomId,
+                        }
+                    );
                     throw new BadRequestError(
                         'This room is no longer available and cannot be confirmed'
                     );
@@ -216,7 +230,11 @@ export async function confirmBookingService(
         });
 
         setImmediate(() => {
-            sendBookingConfirmedNotification(booking, correlationId, userContact);
+            sendBookingConfirmedNotification(
+                booking,
+                correlationId,
+                userContact
+            );
         });
 
         return booking;
@@ -225,12 +243,15 @@ export async function confirmBookingService(
             err instanceof BadRequestError &&
             err.message === 'Booking hold has expired, please book again'
         ) {
-            const idempotencyRecord = await findIdempotencyKeyWithBooking(key, userId);
-            const expiredBooking = idempotencyRecord?.booking ?? (
-                idempotencyRecord?.bookingId
-                    ? await getBookingById(idempotencyRecord.bookingId)
-                    : null
+            const idempotencyRecord = await findIdempotencyKeyWithBooking(
+                key,
+                userId
             );
+            const expiredBooking =
+                idempotencyRecord?.booking ??
+                (idempotencyRecord?.bookingId
+                    ? await getBookingById(idempotencyRecord.bookingId)
+                    : null);
 
             if (
                 expiredBooking &&
