@@ -1,9 +1,13 @@
+import { prisma } from '../database/prisma.js';
 import {
-    findUnprossedOutboxEntries,
-    markOutboxEntryProcessed,
+    findUnprocessedOutboxEntriesWithLock,
+    markOutboxEntriesProcessed,
 } from '../database/outbox.repository.js';
 import { logger } from '../logger/index.js';
-import { roomEventsBookingQueue } from '../queue/queue.client.js';
+import {
+    roomEventsBookingQueue,
+    hotelRoomEventsNotificationQueue,
+} from '../queue/queue.client.js';
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -12,9 +16,6 @@ let isPolling = false;
 let inFlightBatch: Promise<void> | null = null;
 
 async function processOutboxBatch(): Promise<void> {
-    // Guard against overlapping ticks: if a previous batch is still
-    // draining (e.g. a large cascade delete), skip this tick entirely
-    // rather than re-polling and re-relaying the same rows.
     if (isPolling) {
         return;
     }
@@ -23,41 +24,103 @@ async function processOutboxBatch(): Promise<void> {
     inFlightBatch = (async () => {
         try {
             let iterations = 0;
-            const maxIterations = 10; // Safety valve to prevent infinite loop/starvation
+            const maxIterations = 10; // Safety valve
             while (iterations < maxIterations) {
-                const entries = await findUnprossedOutboxEntries();
-                if (entries.length === 0) {
-                    break;
-                }
+                // Perform entire batch processing in a transaction to hold SKIP LOCKED rows
+                const processedCount = await prisma
+                    .$transaction(async (tx) => {
+                        const entries =
+                            await findUnprocessedOutboxEntriesWithLock(50, tx);
+                        if (entries.length === 0) {
+                            return 0;
+                        }
 
-                let processedCount = 0;
-                for (const entry of entries) {
-                    try {
-                        await Promise.all([
-                            roomEventsBookingQueue.add(entry.eventType, {
-                                eventType: entry.eventType,
-                                aggregateId: entry.aggregateId,
-                                payload: entry.payload,
-                            }),
-                        ]);
+                        const successIds: number[] = [];
+                        for (const entry of entries) {
+                            try {
+                                const standardEnvelope = {
+                                    eventId: entry.eventId,
+                                    eventType: entry.eventType,
+                                    aggregateType: entry.aggregateType,
+                                    aggregateId: String(entry.aggregateId),
+                                    aggregateVersion: entry.aggregateVersion,
+                                    schemaVersion: entry.schemaVersion,
+                                    occurredAt: entry.occurredAt.toISOString(),
+                                    correlationId:
+                                        entry.correlationId || undefined,
+                                    payload: entry.payload,
+                                };
 
-                        await markOutboxEntryProcessed(entry.id);
-                        processedCount++;
-                        logger.info('outbox entry relayed', {
-                            outboxId: entry.id,
-                            eventType: entry.eventType,
-                            aggregateId: entry.aggregateId,
-                        });
-                    } catch (err) {
-                        logger.error('failed to relay outbox entry', {
-                            outboxId: entry.id,
-                            error: err instanceof Error ? err.message : err,
-                        });
-                    }
-                }
+                                const promises: Promise<any>[] = [];
 
-                // If no entries were successfully processed, break to prevent a tight
-                // infinite loop of failures (e.g. database down, queue down, or poison pill head-of-line block)
+                                // 1. Fan out Room events to the booking service queue (unchanged compatibility)
+                                if (
+                                    entry.aggregateType === 'Room' &&
+                                    (entry.eventType === 'RoomCreated' ||
+                                        entry.eventType === 'RoomUpdated' ||
+                                        entry.eventType === 'RoomDeleted')
+                                ) {
+                                    promises.push(
+                                        roomEventsBookingQueue.add(
+                                            entry.eventType,
+                                            {
+                                                eventType: entry.eventType,
+                                                aggregateId: String(
+                                                    entry.aggregateId
+                                                ),
+                                                payload: entry.payload as any,
+                                            }
+                                        )
+                                    );
+                                }
+
+                                // 2. Fan out all Hotel and Room events to notification service queue
+                                promises.push(
+                                    hotelRoomEventsNotificationQueue.add(
+                                        entry.eventType,
+                                        standardEnvelope,
+                                        { jobId: entry.eventId } // Deduplication at BullMQ level
+                                    )
+                                );
+
+                                await Promise.all(promises);
+                                successIds.push(entry.id);
+
+                                logger.info('outbox entry relayed', {
+                                    outboxId: entry.id,
+                                    eventType: entry.eventType,
+                                    aggregateId: entry.aggregateId,
+                                    aggregateVersion: entry.aggregateVersion,
+                                });
+                            } catch (err) {
+                                logger.error('failed to relay outbox entry', {
+                                    outboxId: entry.id,
+                                    error:
+                                        err instanceof Error
+                                            ? err.message
+                                            : err,
+                                });
+                                // Throw error to roll back transaction for the whole batch
+                                // so we don't skip unlocked rows that failed to publish.
+                                throw err;
+                            }
+                        }
+
+                        if (successIds.length > 0) {
+                            await markOutboxEntriesProcessed(successIds, tx);
+                        }
+                        return successIds.length;
+                    })
+                    .catch((err) => {
+                        logger.error(
+                            'Outbox transaction batch failed, rolled back',
+                            {
+                                error: err instanceof Error ? err.message : err,
+                            }
+                        );
+                        return 0;
+                    });
+
                 if (processedCount === 0) {
                     break;
                 }

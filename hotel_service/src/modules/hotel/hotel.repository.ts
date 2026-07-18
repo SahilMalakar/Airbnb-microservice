@@ -103,3 +103,31 @@ export async function updateHotel(
         data,
     });
 }
+
+export const getHotelsSnapshot = async (cursor: number, limit: number) => {
+    const result = await prisma.$transaction(async (tx) => {
+        const maxOutbox = await tx.outbox.aggregate({
+            _max: { id: true },
+        });
+        const outboxCursor = maxOutbox._max.id || 0;
+
+        const hotels = await tx.hotel.findMany({
+            where: { id: { gt: cursor } },
+            orderBy: { id: 'asc' },
+            take: limit,
+            select: {
+                id: true,
+                name: true,
+                deletedAt: true,
+                version: true,
+            },
+        });
+
+        return {
+            hotels,
+            outboxCursor,
+        };
+    });
+
+    return result;
+};

@@ -1,5 +1,8 @@
 import type { RequestHandler } from 'express';
-import { BadRequestError } from '../../shared/errors/app.error.js';
+import {
+    BadRequestError,
+    UnauthorizedError,
+} from '../../shared/errors/app.error.js';
 import { sendPaginated, sendSuccess } from '../../shared/utils/apiResponse.js';
 import { asyncHandler } from '../../shared/utils/asynHandler.js';
 import { idSchema } from '../../shared/utils/id.convert.js';
@@ -8,6 +11,7 @@ import {
     deleteHotelService,
     getAllHotelsService,
     getHotelByIdService,
+    getHotelsSnapshotService,
     recoveryHotelService,
     updateHotelService,
 } from './hotel.service.js';
@@ -95,5 +99,22 @@ export const recoveryHotelController: RequestHandler = asyncHandler(
         const hotel = await recoveryHotelService(parsed.id, userId);
 
         sendSuccess(res, hotel, 'Hotel recovered successfully', 200);
+    }
+);
+
+// Internal snapshot endpoint for projection bootstrapping
+export const getHotelsSnapshotController: RequestHandler = asyncHandler(
+    async (req, res) => {
+        const key = req.headers['x-internal-service-key'];
+        if (!key || key !== process.env.INTERNAL_SERVICE_KEY) {
+            throw new UnauthorizedError('Unauthorized internal request');
+        }
+
+        const cursor = Number(req.query.cursor) || 0;
+        const limit = Number(req.query.limit) || 100;
+
+        const hotels = await getHotelsSnapshotService(cursor, limit);
+
+        sendSuccess(res, hotels, 'Hotels snapshot retrieved', 200);
     }
 );

@@ -120,6 +120,7 @@ export async function confirmBookingWithLock(
         },
         data: {
             status: 'CONFIRMED',
+            version: { increment: 1 },
         },
     });
 
@@ -136,7 +137,7 @@ export async function confirmBookingWithLock(
         ) {
             await tx.booking.update({
                 where: { id: bookingId },
-                data: { status: 'EXPIRED' },
+                data: { status: 'EXPIRED', version: { increment: 1 } },
             });
             throw new BadRequestError(
                 'Booking hold has expired, please book again'
@@ -206,7 +207,7 @@ export async function expireBookingWithLock(
             status: 'PENDING',
             holdExpiresAt: { lte: new Date() },
         },
-        data: { status: 'EXPIRED' },
+        data: { status: 'EXPIRED', version: { increment: 1 } },
     });
 
     if (result.count === 0) {
@@ -257,7 +258,7 @@ export async function cancelBookingWithLock(
 
     await tx.booking.update({
         where: { id: bookingId },
-        data: { status: 'CANCELLED' },
+        data: { status: 'CANCELLED', version: { increment: 1 } },
     });
 
     const booking = await tx.booking.findUnique({ where: { id: bookingId } });

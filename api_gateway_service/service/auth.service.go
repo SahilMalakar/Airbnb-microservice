@@ -25,6 +25,7 @@ type UserService interface {
 	LogoutService(ctx context.Context, familyID string) error
 	GetAllUsersService() ([]*models.User, error)
 	GetUserByIDService(id int64) (*models.User, error)
+	GetUsersSnapshotService(ctx context.Context, cursor int64, limit int) ([]*models.User, int64, error)
 }
 
 type UserServiceImpl struct {
@@ -124,6 +125,10 @@ func (u *UserServiceImpl) verifyOTP(
 	return ErrInternal
 }
 
+// enqueueOTPEmail routes OTP notifications via the direct HTTP path to the notification service
+// rather than the outbox pattern. This is an intentional security design: OTP payloads contain
+// high-value, short-lived security secrets that should not be persisted in the outbox database table.
+// Delivery failures are mitigated by letting the user request a "Resend OTP" operation.
 func (u *UserServiceImpl) enqueueOTPEmail(user *models.User, otp, templateID, subject, idempotencyPrefix string) {
 	correlationID := uuid.New().String()
 	idempotencyKey := fmt.Sprintf("%s-%d-%s", idempotencyPrefix, user.ID, correlationID)
@@ -223,28 +228,6 @@ func (u *UserServiceImpl) VerifySignupOTPService(ctx context.Context, email, otp
 		utils.Logger.Error("marking user verified", "error", err, "userID", user.ID)
 		return nil, "", "", ErrInternal
 	}
-
-	correlationID := uuid.New().String()
-	idempotencyKey := fmt.Sprintf("welcome-%d-%s", user.ID, correlationID)
-	emailReq := dto.EnqueueEmailRequest{
-		NotificationType: "EMAIL",
-		To:               user.Email,
-		Subject:          "Welcome to Airbnb!",
-		TemplateID:       "welcome",
-		Params: dto.WelcomeEmailPayload{
-			Name: user.Name,
-		},
-		CorrelationID:  correlationID,
-		IdempotencyKey: idempotencyKey,
-	}
-
-	go func() {
-		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := u.notificationClient.EnqueueEmail(bgCtx, emailReq); err != nil {
-			utils.Logger.Error("failed to enqueue welcome email", "error", err, "userID", user.ID)
-		}
-	}()
 
 	roles, err := u.userRoleRepository.GetUserRoleNames(user.ID)
 	if err != nil {
@@ -506,3 +489,8 @@ func (u *UserServiceImpl) GetUserByIDService(id int64) (*models.User, error) {
 	}
 	return user, nil
 }
+
+func (u *UserServiceImpl) GetUsersSnapshotService(ctx context.Context, cursor int64, limit int) ([]*models.User, int64, error) {
+	return u.userRepository.GetUsersSnapshot(ctx, cursor, limit)
+}
+

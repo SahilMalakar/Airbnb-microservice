@@ -7,6 +7,7 @@ const baseEmailFields = {
     subject: z.string().min(1),
     correlationId: z.string().min(1),
     idempotencyKey: z.string().min(1),
+    emailDeliveryId: z.number().int().positive().optional(),
 };
 
 // One variant per templateId — params are strongly typed for each template

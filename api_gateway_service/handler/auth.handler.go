@@ -280,3 +280,41 @@ func (u *UserController) GetInternalUserByID(w http.ResponseWriter, r *http.Requ
 		"email": user.Email,
 	})
 }
+
+// GetInternalUsersSnapshot returns a page of users along with the max outbox cursor.
+func (u *UserController) GetInternalUsersSnapshot(w http.ResponseWriter, r *http.Request) {
+	key := r.Header.Get("X-Internal-Service-Key")
+	if key == "" || key != config.RequireEnvString("INTERNAL_SERVICE_KEY") {
+		utils.SendError(w, http.StatusUnauthorized, "Unauthorized", "INVALID_SERVICE_KEY")
+		return
+	}
+
+	cursorStr := r.URL.Query().Get("cursor")
+	cursor := int64(0)
+	if cursorStr != "" {
+		c, err := strconv.ParseInt(cursorStr, 10, 64)
+		if err == nil {
+			cursor = c
+		}
+	}
+
+	limitStr := r.URL.Query().Get("limit")
+	limit := 100
+	if limitStr != "" {
+		l, err := strconv.Atoi(limitStr)
+		if err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	users, outboxCursor, err := u.UserService.GetUsersSnapshotService(r.Context(), cursor, limit)
+	if err != nil {
+		utils.SendError(w, http.StatusInternalServerError, "Internal Server Error", "INTERNAL_ERROR")
+		return
+	}
+
+	utils.SendSuccess(w, http.StatusOK, "users snapshot retrieved", map[string]interface{}{
+		"users":        users,
+		"outboxCursor": outboxCursor,
+	})
+}

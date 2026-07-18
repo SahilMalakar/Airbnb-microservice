@@ -1,4 +1,3 @@
-import type { Prisma } from '../../infra/database/generated/client.js';
 import { logger } from '../../infra/logger/index.js';
 import {
     NotFoundError,
@@ -19,15 +18,16 @@ import {
     updateRoom,
     softDeleteActiveRoom,
     recoverRoom,
+    getRoomsSnapshot,
 } from './room.repository.js';
 import { prisma } from '../../infra/database/prisma.js';
 import { createOutboxEntry } from '../../infra/database/outbox.repository.js';
+import type { Prisma } from '../../infra/database/generated/client.js';
 
 export const createRoomService = async (
     data: CreateRoomDto,
     userId: number
 ) => {
-    // 1. Verify hotel exists and belongs to the user
     const hotel = await findActiveHotelById(data.hotelId);
     if (!hotel) {
         logger.warn('hotel not found for room creation', {
@@ -55,14 +55,18 @@ export const createRoomService = async (
 
         await createOutboxEntry(
             'RoomCreated',
+            'Room',
             room.id,
+            room.version,
             {
                 roomId: room.id,
                 hotelId: room.hotelId,
+                roomNo: room.roomNo,
                 price: room.price,
                 maxOccupancy: room.maxOccupancy,
                 isActive: room.deletedAt === null,
             },
+            null,
             tx
         );
 
@@ -106,7 +110,6 @@ export const updateRoomService = async (
         throw new NotFoundError('room not found');
     }
 
-    // Verify ownership of the hotel the room belongs to
     const hotel = await findActiveHotelById(room.hotelId);
     if (!hotel) {
         logger.warn('hotel not found for room update', {
@@ -124,24 +127,30 @@ export const updateRoomService = async (
         Object.entries(data).filter(([, value]) => value !== undefined)
     ) as Prisma.RoomUpdateInput;
 
+    updateData.version = { increment: 1 };
+
     return await prisma.$transaction(async (tx) => {
         const updatedRoom = await updateRoom(id, updateData, tx);
 
-        if (!updateRoom) {
+        if (!updatedRoom) {
             logger.error('unable to update room', { roomId: id });
             throw new BadRequestError('unable to update room');
         }
 
         await createOutboxEntry(
             'RoomUpdated',
+            'Room',
             updatedRoom.id,
+            updatedRoom.version,
             {
                 roomId: updatedRoom.id,
                 hotelId: updatedRoom.hotelId,
+                roomNo: updatedRoom.roomNo,
                 price: updatedRoom.price,
                 maxOccupancy: updatedRoom.maxOccupancy,
                 isActive: updatedRoom.deletedAt === null,
             },
+            null,
             tx
         );
 
@@ -156,7 +165,6 @@ export const deleteRoomService = async (id: number, userId: number) => {
         throw new NotFoundError('room not found');
     }
 
-    // Verify ownership of the hotel the room belongs to
     const hotel = await findActiveHotelById(room.hotelId);
     if (!hotel) {
         logger.warn('hotel not found for room deletion', {
@@ -183,12 +191,15 @@ export const deleteRoomService = async (id: number, userId: number) => {
 
         await createOutboxEntry(
             'RoomDeleted',
+            'Room',
             id,
+            deletedRoom.version,
             {
                 roomId: id,
                 hotelId: room.hotelId,
                 isActive: false,
             },
+            null,
             tx
         );
 
@@ -203,7 +214,6 @@ export const recoveryRoomService = async (id: number, userId: number) => {
         throw new NotFoundError('room not found');
     }
 
-    // Verify ownership of the hotel the room belongs to
     const hotel = await findActiveHotelById(room.hotelId);
     if (!hotel) {
         logger.warn('hotel not found for room recovery', {
@@ -230,17 +240,48 @@ export const recoveryRoomService = async (id: number, userId: number) => {
 
         await createOutboxEntry(
             'RoomUpdated',
+            'Room',
             id,
+            recoveredRoom.version,
             {
                 roomId: id,
                 hotelId: room.hotelId,
+                roomNo: room.roomNo,
                 price: room.price,
                 maxOccupancy: room.maxOccupancy,
                 isActive: true,
             },
+            null,
             tx
         );
 
         return recoveredRoom;
     });
+};
+
+export const getRoomsSnapshotService = async (
+    cursor: number,
+    limit: number
+) => {
+    const result = await getRoomsSnapshot(cursor, limit);
+
+    logger.info('rooms snapshot retrieved successfully', {
+        count: result.rooms.length,
+        outboxCursor: result.outboxCursor,
+    });
+
+    const mappedRooms = result.rooms.map((r) => ({
+        id: r.id,
+        hotelId: r.hotelId,
+        roomNo: r.roomNo,
+        price: r.price,
+        maxOccupancy: r.maxOccupancy,
+        isActive: r.deletedAt === null,
+        version: r.version,
+    }));
+
+    return {
+        rooms: mappedRooms,
+        outboxCursor: result.outboxCursor,
+    };
 };

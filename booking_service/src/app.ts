@@ -13,7 +13,11 @@ import { app } from './server.js';
 import { errorMiddleware } from './shared/middlewares/globalError.js';
 import { roomEventsWorker } from './infra/queue/roomEvents.worker.js';
 import { roomAvailabilityExtensionWorker } from './infra/queue/roomAvailabilityExtension.worker.js';
-import { closeNotificationQueue } from './shared/utils/notification.publisher.js';
+import { startOutboxRelay, stopOutboxRelay } from './infra/outbox/relay.js';
+import {
+    startOutboxPruning,
+    stopOutboxPruning,
+} from './infra/outbox/pruning.js';
 
 app.use('/api/v1', heathcheckRouter);
 app.use('/api/v1/booking', bookingRouter);
@@ -26,6 +30,8 @@ const server = app.listen(ServerConfig.PORT, async (): Promise<void> => {
     logger.info(`server is running on http://localhost:${ServerConfig.PORT}`);
     logger.info(`Press Ctrl + C to stop the server`);
     await scheduleRoomAvailabilityExtension();
+    startOutboxRelay();
+    startOutboxPruning();
 });
 
 const gracefulShutdown = async (signal: string): Promise<void> => {
@@ -50,7 +56,9 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
             await roomAvailabilityExtensionQueue.close();
             logger.info('Room availability extension queue closed');
 
-            await closeNotificationQueue();
+            await stopOutboxRelay();
+            stopOutboxPruning();
+            logger.info('Booking outbox relay stopped');
 
             await disconnectDB();
 

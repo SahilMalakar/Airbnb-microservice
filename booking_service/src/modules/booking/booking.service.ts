@@ -6,12 +6,6 @@ import { redlock } from '../../infra/redis/redis.js';
 import { BadRequestError } from '../../shared/errors/app.error.js';
 import { getCorrelationId } from '../../shared/utils/requestContext.js';
 import {
-    sendBookingConfirmedNotification,
-    sendBookingCancelledNotification,
-    sendBookingFailedNotification,
-    type UserContact,
-} from '../../shared/utils/notification.publisher.js';
-import {
     CACHE_KEY,
     HOLD_DURATION_MS,
     TTL,
@@ -36,6 +30,7 @@ import {
     getRoomRefById,
     isUniqueConstraintViolation,
 } from './booking.repository.js';
+import { createOutboxEntry } from '../../infra/database/outbox.repository.js';
 
 // applying prisma transaction with idempotency key to prevent a user from double booking
 // applying distributed redis lock (redLock) to prevent Concurent Booking by mutiple users
@@ -168,11 +163,7 @@ export async function createBookingService(
     }
 }
 
-export async function confirmBookingService(
-    key: string,
-    userId: number,
-    userContact?: UserContact
-) {
+export async function confirmBookingService(key: string, userId: number) {
     const correlationId = getCorrelationId();
 
     try {
@@ -217,6 +208,29 @@ export async function confirmBookingService(
 
             logger.info('Booking confirmed', booking);
 
+            await createOutboxEntry(
+                'BookingConfirmed',
+                'Booking',
+                booking!.id,
+                booking!.version,
+                {
+                    bookingId: booking!.id,
+                    roomId: booking!.roomId,
+                    userId: booking!.userId,
+                    hotelId: booking!.hotelId,
+                    totalGuests: booking!.totalGuests,
+                    bookingAmount: booking!.bookingAmount,
+                    checkInDate: new Date(booking!.checkInDate)
+                        .toISOString()
+                        .split('T')[0],
+                    checkOutDate: new Date(booking!.checkOutDate)
+                        .toISOString()
+                        .split('T')[0],
+                },
+                correlationId,
+                tx
+            );
+
             await finalizeIdempotencyKey(
                 idempotencyKey!.key,
                 userId,
@@ -227,14 +241,6 @@ export async function confirmBookingService(
             logger.info('Idempotency Key confirmed', key);
 
             return booking;
-        });
-
-        setImmediate(() => {
-            sendBookingConfirmedNotification(
-                booking,
-                correlationId,
-                userContact
-            );
         });
 
         return booking;
@@ -253,18 +259,37 @@ export async function confirmBookingService(
                     ? await getBookingById(idempotencyRecord.bookingId)
                     : null);
 
-            if (
-                expiredBooking &&
-                expiredBooking.status === 'PENDING' &&
-                expiredBooking.holdExpiresAt <= new Date()
-            ) {
-                setImmediate(() => {
-                    sendBookingFailedNotification(
-                        expiredBooking,
-                        'Booking hold has expired, please book again',
-                        correlationId,
-                        userContact
-                    );
+            if (expiredBooking) {
+                await prisma.$transaction(async (tx) => {
+                    const latestBooking = await tx.booking.findUnique({
+                        where: { id: expiredBooking.id },
+                    });
+                    if (latestBooking) {
+                        let currentBooking = latestBooking;
+                        if (latestBooking.status === 'PENDING') {
+                            currentBooking = await tx.booking.update({
+                                where: { id: expiredBooking.id },
+                                data: {
+                                    status: 'EXPIRED',
+                                    version: { increment: 1 },
+                                },
+                            });
+                        }
+
+                        await createOutboxEntry(
+                            'BookingFailed',
+                            'Booking',
+                            currentBooking.id,
+                            currentBooking.version,
+                            {
+                                bookingId: currentBooking.id,
+                                userId: currentBooking.userId,
+                                reason: 'Booking hold has expired, please book again',
+                            },
+                            correlationId,
+                            tx
+                        );
+                    }
                 });
             }
         }
@@ -273,11 +298,8 @@ export async function confirmBookingService(
     }
 }
 
-export async function cancelBookingService(
-    bookingId: number,
-    userId: number,
-    userContact?: UserContact
-) {
+export async function cancelBookingService(bookingId: number, userId: number) {
+    const correlationId = getCorrelationId();
     const booking = await prisma.$transaction(async (tx) => {
         const result = await cancelBookingWithLock(bookingId, userId, tx);
 
@@ -317,13 +339,29 @@ export async function cancelBookingService(
             );
         }
 
+        await createOutboxEntry(
+            'BookingCancelled',
+            'Booking',
+            booking.id,
+            booking.version,
+            {
+                bookingId: booking.id,
+                roomId: booking.roomId,
+                userId: booking.userId,
+                hotelId: booking.hotelId,
+                checkInDate: new Date(booking.checkInDate)
+                    .toISOString()
+                    .split('T')[0],
+                checkOutDate: new Date(booking.checkOutDate)
+                    .toISOString()
+                    .split('T')[0],
+            },
+            correlationId,
+            tx
+        );
+
         logger.info('Booking cancelled successfully', booking.id);
         return booking;
-    });
-
-    const correlationId = getCorrelationId();
-    setImmediate(() => {
-        sendBookingCancelledNotification(booking, correlationId, userContact);
     });
 
     return booking;

@@ -16,11 +16,14 @@ import {
     updateRoomController,
     deleteRoomController,
     recoveryRoomController,
+    getRoomsSnapshotController,
 } from './room.controller.js';
 import { idSchema } from '../../shared/utils/id.convert.js';
 import { extractUserId } from '../../shared/middlewares/extractUserId.js';
 
 const roomRouter: Router = Router();
+
+roomRouter.get('/internal/rooms/snapshot', getRoomsSnapshotController);
 
 roomRouter.post(
     '/room',

@@ -16,6 +16,7 @@ interface BaseEmailJob {
     subject: string;
     correlationId: string;
     idempotencyKey: string;
+    emailDeliveryId?: number; // <-- ADDED
 }
 
 export interface WelcomeEmailJob extends BaseEmailJob {

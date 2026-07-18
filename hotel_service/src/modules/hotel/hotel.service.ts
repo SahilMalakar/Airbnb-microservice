@@ -1,4 +1,3 @@
-import type { Prisma } from '../../infra/database/generated/client.js';
 import { prisma } from '../../infra/database/prisma.js';
 import { logger } from '../../infra/logger/index.js';
 import {
@@ -15,20 +14,46 @@ import {
     findActiveHotelById,
     findAllActiveHotels,
     findHotelByIdIncludingDeleted,
-    softDeleteActiveHotel,
-    recoverHotel,
+    getHotelsSnapshot,
     updateHotel,
 } from './hotel.repository.js';
 import {
     findActiveRoomsByHotelId,
-    softDeleteRoomsByIds,
     findRoomsByHotelIdAndDeletedAt,
-    restoreRoomsByIds,
 } from '../room/room.repository.js';
-import { createOutboxEntries } from '../../infra/database/outbox.repository.js';
+import {
+    createOutboxEntry,
+    createOutboxEntries,
+} from '../../infra/database/outbox.repository.js';
+import type { Prisma } from '../../infra/database/generated/client.js';
 
 export const createHotelService = async (hotelData: CreateHotelInputDto) => {
-    const hotel = await createHotel(hotelData);
+    const hotel = await prisma.$transaction(async (tx) => {
+        const hotel = await createHotel(hotelData, tx);
+        const city = await tx.city.findUnique({ where: { id: hotel.cityId } });
+        const state = await tx.state.findUnique({
+            where: { id: hotel.stateId },
+        });
+
+        await createOutboxEntry(
+            'HotelCreated',
+            'Hotel',
+            hotel.id,
+            hotel.version,
+            {
+                hotelId: hotel.id,
+                name: hotel.name,
+                hostId: hotel.hostId,
+                city: city?.name || '',
+                state: state?.name || '',
+                address: hotel.address,
+                pincode: hotel.pincode,
+            },
+            null,
+            tx
+        );
+        return hotel;
+    });
     logger.info('hotel created successfully', { hotelId: hotel.id });
     return hotel;
 };
@@ -71,7 +96,29 @@ export const updateHotelService = async (
         Object.entries(data).filter(([, value]) => value !== undefined)
     ) as Prisma.HotelUpdateInput;
 
-    return updateHotel(id, updateData);
+    updateData.version = { increment: 1 };
+
+    const updated = await prisma.$transaction(async (tx) => {
+        const res = await updateHotel(id, updateData, tx);
+        await createOutboxEntry(
+            'HotelUpdated',
+            'Hotel',
+            res.id,
+            res.version,
+            {
+                hotelId: res.id,
+                name: res.name,
+                hostId: res.hostId,
+                isActive: true,
+            },
+            null,
+            tx
+        );
+        return res;
+    });
+
+    logger.info('hotel updated successfully', { hotelId: id });
+    return updated;
 };
 
 export const deleteHotelService = async (id: number, userId: number) => {
@@ -90,27 +137,42 @@ export const deleteHotelService = async (id: number, userId: number) => {
     return await prisma.$transaction(async (tx) => {
         const deletedAt = new Date();
 
-        const deletedHotel = await softDeleteActiveHotel(id, deletedAt, tx);
+        const deletedHotel = await tx.hotel.update({
+            where: { id, deletedAt: null },
+            data: { deletedAt, version: { increment: 1 } },
+        });
 
-        // Cascade: soft-delete every currently-active room under this hotel,
-        // stamped with the SAME deletedAt as the hotel — this shared
-        // timestamp is how recoveryHotelService later tells "deleted because
-        // the hotel was deleted" apart from "deleted on its own, earlier".
+        await createOutboxEntry(
+            'HotelDeleted',
+            'Hotel',
+            deletedHotel.id,
+            deletedHotel.version,
+            {
+                hotelId: deletedHotel.id,
+                isActive: false,
+            },
+            null,
+            tx
+        );
+
         const roomsToDelete = await findActiveRoomsByHotelId(id, tx);
 
         if (roomsToDelete.length > 0) {
-            await softDeleteRoomsByIds(
-                roomsToDelete.map((r) => r.id),
-                deletedAt,
-                tx
-            );
+            await tx.room.updateMany({
+                where: { id: { in: roomsToDelete.map((r) => r.id) } },
+                data: { deletedAt, version: { increment: 1 } },
+            });
 
-            // Batch outbox insert — one INSERT for all cascaded rooms
-            // instead of one per row.
+            const updatedRooms = await tx.room.findMany({
+                where: { id: { in: roomsToDelete.map((r) => r.id) } },
+            });
+
             await createOutboxEntries(
-                roomsToDelete.map((room) => ({
+                updatedRooms.map((room) => ({
                     eventType: 'RoomDeleted' as const,
+                    aggregateType: 'Room' as const,
                     aggregateId: room.id,
+                    aggregateVersion: room.version,
                     payload: {
                         roomId: room.id,
                         hotelId: room.hotelId,
@@ -148,11 +210,26 @@ export const recoveryHotelService = async (id: number, userId: number) => {
     const hotelDeletedAt = hotel.deletedAt;
 
     return await prisma.$transaction(async (tx) => {
-        const recoveredHotel = await recoverHotel(id, tx);
+        const recoveredHotel = await tx.hotel.update({
+            where: { id, deletedAt: { not: null } },
+            data: { deletedAt: null, version: { increment: 1 } },
+        });
 
-        // Only restore rooms cascade-deleted at the exact moment the hotel
-        // was. Rooms the host individually deleted before (or after) that
-        // have a non-matching deletedAt and correctly stay deleted.
+        await createOutboxEntry(
+            'HotelUpdated',
+            'Hotel',
+            recoveredHotel.id,
+            recoveredHotel.version,
+            {
+                hotelId: recoveredHotel.id,
+                name: recoveredHotel.name,
+                hostId: recoveredHotel.hostId,
+                isActive: true,
+            },
+            null,
+            tx
+        );
+
         const roomsToRestore = await findRoomsByHotelIdAndDeletedAt(
             id,
             hotelDeletedAt,
@@ -160,15 +237,21 @@ export const recoveryHotelService = async (id: number, userId: number) => {
         );
 
         if (roomsToRestore.length > 0) {
-            await restoreRoomsByIds(
-                roomsToRestore.map((r) => r.id),
-                tx
-            );
+            await tx.room.updateMany({
+                where: { id: { in: roomsToRestore.map((r) => r.id) } },
+                data: { deletedAt: null, version: { increment: 1 } },
+            });
+
+            const updatedRooms = await tx.room.findMany({
+                where: { id: { in: roomsToRestore.map((r) => r.id) } },
+            });
 
             await createOutboxEntries(
-                roomsToRestore.map((room) => ({
+                updatedRooms.map((room) => ({
                     eventType: 'RoomUpdated' as const,
+                    aggregateType: 'Room' as const,
                     aggregateId: room.id,
+                    aggregateVersion: room.version,
                     payload: {
                         roomId: room.id,
                         hotelId: room.hotelId,
@@ -188,4 +271,24 @@ export const recoveryHotelService = async (id: number, userId: number) => {
 
         return recoveredHotel;
     });
+};
+
+export const getHotelsSnapshotService = async (
+    cursor: number,
+    limit: number
+) => {
+    const result = await getHotelsSnapshot(cursor, limit);
+    logger.info('hotels snapshot retrieved', { count: result.hotels.length });
+
+    const mappedHotels = result.hotels.map((h) => ({
+        id: h.id,
+        name: h.name,
+        isActive: h.deletedAt === null,
+        version: h.version,
+    }));
+
+    return {
+        hotels: mappedHotels,
+        outboxCursor: result.outboxCursor,
+    };
 };

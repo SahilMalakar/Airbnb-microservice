@@ -50,6 +50,7 @@ func SetUpRouter(
 	// --- Internal ---
 	if ur, ok := userRouter.(*UserRouter); ok {
 		router.Get("/internal/users/{id}", ur.UserController.GetInternalUserByID)
+		router.Get("/internal/users/snapshot", ur.UserController.GetInternalUsersSnapshot)
 	}
 
 	// --- Versioned API ---

@@ -9,6 +9,7 @@ import (
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/config"
 	db "github.com/sahilmalakar/airbnb-microservice/api-gateway/db/repository"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/handler"
+	"github.com/sahilmalakar/airbnb-microservice/api-gateway/infra/outbox"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/middleware"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/router"
 	"github.com/sahilmalakar/airbnb-microservice/api-gateway/service"
@@ -100,6 +101,14 @@ func (a *Application) RunServer() error {
 	userRoleRouter := router.NewUserRoleRouter(userRoleController)
 
 	chi := router.SetUpRouter(redisClient, userRouter, roleRouter, permissionRouter, rolePermissionRouter, userRoleRouter)
+
+	relay := outbox.NewRelay(conn, notificationClient)
+	relay.Start()
+	defer relay.Stop()
+
+	pruner := outbox.NewPruneRunner(conn)
+	pruner.Start()
+	defer pruner.Stop()
 
 	server := &http.Server{
 		Addr:         a.Config.Address,

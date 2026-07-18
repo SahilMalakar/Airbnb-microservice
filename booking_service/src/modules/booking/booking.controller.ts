@@ -8,14 +8,6 @@ import {
 import { sendSuccess } from '../../shared/utils/apiResponse.js';
 import { NotFoundError } from '../../shared/errors/app.error.js';
 import { idSchema } from '../../shared/utils/id.convert.js';
-import type { UserContact } from '../../shared/utils/notification.publisher.js';
-
-function resolveUserContact(req: Request): UserContact | undefined {
-    if (req.userEmail && req.userName) {
-        return { email: req.userEmail, name: req.userName };
-    }
-    return undefined;
-}
 
 export const createBookingController: RequestHandler = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
@@ -42,11 +34,7 @@ export const confirmBookingController: RequestHandler = asyncHandler(
             throw new NotFoundError('Key is required');
         }
 
-        const booking = await confirmBookingService(
-            key as string,
-            userId,
-            resolveUserContact(req)
-        );
+        const booking = await confirmBookingService(key as string, userId);
 
         sendSuccess(res, booking, 'Booking confirmed successfully', 200);
     }
@@ -61,11 +49,7 @@ export const cancelBookingController: RequestHandler = asyncHandler(
             throw new NotFoundError('User not found');
         }
 
-        const booking = await cancelBookingService(
-            parsed.id,
-            userId,
-            resolveUserContact(req)
-        );
+        const booking = await cancelBookingService(parsed.id, userId);
         sendSuccess(res, booking, 'Booking cancelled successfully', 200);
     }
 );

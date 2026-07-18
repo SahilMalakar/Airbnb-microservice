@@ -12,4 +12,5 @@ export const ROOM_EVENTS_BOOKING_QUEUE = 'room-events-booking-queue';
 
 export const ROOM_AVAILABILITY_EXTENSION_QUEUE = 'room-availability-extension';
 
-export const NOTIFICATION_QUEUE = 'notification-queue';
+export const BOOKING_EVENTS_NOTIFICATION_QUEUE =
+    'booking-events-notification-queue';

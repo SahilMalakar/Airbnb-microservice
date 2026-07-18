@@ -7,3 +7,5 @@ logs/
 /prisma/generated/prisma
 src/infra/database/generated
 /src/generated/prisma
+/*.txt
+docs/

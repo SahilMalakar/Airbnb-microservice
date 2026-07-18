@@ -2,6 +2,10 @@ import { ServerConfig } from './config/index.js';
 import { connectDB, disconnectDB } from './infra/database/prisma.js';
 import { logger } from './infra/logger/index.js';
 import { startOutboxRelay, stopOutboxRelay } from './infra/outbox/relay.js';
+import {
+    startOutboxPruning,
+    stopOutboxPruning,
+} from './infra/outbox/pruning.js';
 import { roomEventsBookingQueue } from './infra/queue/queue.client.js';
 import { heathcheckRouter } from './modules/health/ping.route.js';
 import { hotelRouter } from './modules/hotel/hotel.route.js';
@@ -21,6 +25,7 @@ const server = app.listen(ServerConfig.PORT, async (): Promise<void> => {
     logger.info(`server is running on http://localhost:${ServerConfig.PORT}`);
     logger.info(`Press Ctrl + C to stop the server`);
     startOutboxRelay();
+    startOutboxPruning();
 });
 
 const gracefulShutdown = async (signal: string): Promise<void> => {
@@ -31,6 +36,7 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
             logger.info('HTTP Server closed');
 
             await stopOutboxRelay();
+            stopOutboxPruning();
 
             await roomEventsBookingQueue.close();
 

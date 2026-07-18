@@ -16,11 +16,14 @@ import {
     updateHotelController,
     deleteHotelController,
     recoveryHotelController,
+    getHotelsSnapshotController,
 } from './hotel.controller.js';
 import { idSchema } from '../../shared/utils/id.convert.js';
 import { extractUserId } from '../../shared/middlewares/extractUserId.js';
 
 const hotelRouter: Router = Router();
+
+hotelRouter.get('/internal/hotels/snapshot', getHotelsSnapshotController); // <-- ADDED
 
 hotelRouter.post(
     '/hotel',

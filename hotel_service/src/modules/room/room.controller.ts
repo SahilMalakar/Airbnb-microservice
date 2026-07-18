@@ -1,5 +1,8 @@
 import type { RequestHandler } from 'express';
-import { BadRequestError } from '../../shared/errors/app.error.js';
+import {
+    BadRequestError,
+    UnauthorizedError,
+} from '../../shared/errors/app.error.js';
 import { sendSuccess } from '../../shared/utils/apiResponse.js';
 import { asyncHandler } from '../../shared/utils/asynHandler.js';
 import { idSchema } from '../../shared/utils/id.convert.js';
@@ -9,6 +12,7 @@ import {
     deleteRoomService,
     getAllRoomsService,
     getRoomByIdService,
+    getRoomsSnapshotService,
     recoveryRoomService,
     updateRoomService,
 } from './room.service.js';
@@ -73,5 +77,22 @@ export const recoveryRoomController: RequestHandler = asyncHandler(
         const userId = req.userId;
         const room = await recoveryRoomService(parsed.id, userId);
         sendSuccess(res, room, 'Room recovered successfully', 200);
+    }
+);
+
+// Internal snapshot endpoint for projection bootstrapping
+export const getRoomsSnapshotController: RequestHandler = asyncHandler(
+    async (req, res) => {
+        const key = req.headers['x-internal-service-key'];
+        if (!key || key !== process.env.INTERNAL_SERVICE_KEY) {
+            throw new UnauthorizedError('Unauthorized internal request');
+        }
+
+        const cursor = Number(req.query.cursor) || 0;
+        const limit = Number(req.query.limit) || 100;
+
+        const rooms = await getRoomsSnapshotService(cursor, limit);
+
+        sendSuccess(res, rooms, 'Rooms snapshot retrieved', 200);
     }
 );
